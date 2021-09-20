@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from oauth2client.service_account import ServiceAccountCredentials
 from requests_html import HTMLSession
 
-MAX_RETRIES = 10
+MAX_RETRIES = 2
 
 da_output_range = ["A", "F"]
 tcg_output_range = ["G", "K"]
@@ -38,7 +38,7 @@ def main():
     cs_url_list = sheet.batch_get(['AB2:AB' + str(len(rows) + 1)])[0]
 
     total_list = da_url_list + tcg_url_list + tnt_url_list + cs_url_list
-    scrape_url_list(tcg_url_list, sheet, headers)
+    scrape_url_list(total_list, sheet, headers)
 
 def scrape_url_list(urls, sheet, headers):
     da_row = tcg_row = tnt_row = cs_row = 2
@@ -46,11 +46,6 @@ def scrape_url_list(urls, sheet, headers):
         batch_list = []
         for url in urls[start_index:start_index + 10]:  # The first item is a list containing all the information
             if url:
-                # try:
-                #     response = requests.get(url[0], headers)
-                # except requests.exceptions.MissingSchema:
-                #     return
-
                 r = session.get(url[0])
                 r.html.render()
                 soup = BeautifulSoup(r.html.raw_html, features="lxml")
@@ -64,19 +59,19 @@ def scrape_url_list(urls, sheet, headers):
                 elif "shop.tcgplayer.com" in url[0]:
                     print("Reading url info for ", "line:", tcg_row, url[0])
                     output_range = tcg_output_range[0] + str(tcg_row) + ":" + tcg_output_range[1] + str(tcg_row)
-                    values = retry(parse_tcg, soup, MAX_RETRIES)
+                    values = retry(parse_tcg, r, MAX_RETRIES)
                     tcg_row += 1
                     print(values)
                 elif "www.trollandtoad.com" in url[0]:
                     print("Reading url info for ", "line:", tnt_row, url[0])
                     output_range = tnt_output_range[0] + str(tnt_row) + ":" + tnt_output_range[1] + str(tnt_row)
-                    values = parse_tnt(soup)
+                    values = retry(parse_tnt, soup, MAX_RETRIES)
                     tnt_row += 1
                     print(values)
                 elif "collectorstore.com" in url[0]:
                     print("Reading url info for ", "line:", cs_row, url[0])
                     output_range = cs_output_range[0] + str(cs_row) + ":" + cs_output_range[1] + str(cs_row)
-                    values = parse_tnt(soup)
+                    values = retry(parse_cs, soup, MAX_RETRIES)
                     cs_row += 1
                     print(values)
 
@@ -116,21 +111,36 @@ def parse_da(soup):
     return [[title, da_price, da_desc, da_pic, da_upc_text, da_stock_text]]
 
 
-def parse_tcg(soup):
-    print(soup)
-    tcg_title = soup.find("div", {"class": 'product-details__name'})  # Grabs item Name
-    print("TCG TITLE: ", tcg_title)
-    try:
-        # Grabs price
-        tcg_price = soup.find(class_='spotlight__price')
-    except AttributeError:
-        tcg_price = ""
+def parse_tcg(r):
+    tcg_title_field = r.html.find(".product-details__name", first=True)  # Grabs item Name
+    if tcg_title_field is None:
+        tcg_title = "Could not retrieve title"
+    else:
+        tcg_title = tcg_title_field.text
 
-    tcg_desc = soup.find(class_='product-details__details-description').get_text()  # Grabs Description
-    tcg_pic = soup.find(class_='product-details__info').findChild('img')['src']
-    tcg_stock_text = ""
+    tcg_price_field = r.html.find(".spotlight__price", first=True)
+    if tcg_price_field is None:
+        tcg_price = "Could not retrieve price"
+    else:
+        tcg_price = tcg_price_field.text
+
+    tcg_desc_field = r.html.find(".pd-description__description", first=True) # Grabs Description
+    if tcg_desc_field is None:
+        tcg_desc = "Could not retrieve description"
+    else:
+        tcg_desc = tcg_desc_field.text
+
+    tcg_pic_field =  r.html.find(".product-details__product", first=True)
+    if tcg_pic_field is None:
+        tcg_pic = "Could not retrieve pic"
+    else:
+        try:
+            tcg_pic =tcg_pic_field.find(".progressive-image-main", first=True).attrs["src"]
+        except KeyError:
+            tcg_pic = "Could not retrieve pic"
 
     # logic for stock information
+    tcg_stock_text = ""
     if tcg_price == "":
         tcg_stock_text = "Out Of Stock"
     else:
@@ -188,7 +198,6 @@ def retry(func, soup, max_tries):
             print(message)
         else:
             return results
-
 
 if __name__ == "__main__":
     main()
