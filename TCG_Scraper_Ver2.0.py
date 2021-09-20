@@ -4,6 +4,9 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from oauth2client.service_account import ServiceAccountCredentials
+from requests_html import HTMLSession
+
+MAX_RETRIES = 10
 
 da_output_range = ["A", "F"]
 tcg_output_range = ["G", "K"]
@@ -14,6 +17,8 @@ cs_output_range = ["P", "S"]
 # "client_email": "tcgscraper@tcg-scraper.iam.gserviceaccount.com"
 # TODO: Optimize Speed
 # TODO: Work around JAVA for TCG Player
+
+session = HTMLSession()
 
 def main():
     print("Starting Scraper")
@@ -33,45 +38,49 @@ def main():
     cs_url_list = sheet.batch_get(['AB2:AB' + str(len(rows) + 1)])[0]
 
     total_list = da_url_list + tcg_url_list + tnt_url_list + cs_url_list
-    scrape_url_list(total_list, sheet, headers)
-
+    scrape_url_list(tcg_url_list, sheet, headers)
 
 def scrape_url_list(urls, sheet, headers):
-    row = 2
+    da_row = tcg_row = tnt_row = cs_row = 2
     for start_index in range(0, len(urls), 40):
         batch_list = []
         for url in urls[start_index:start_index + 10]:  # The first item is a list containing all the information
-
-            # TODO: check URL host, create host-specific parse funcs
             if url:
-                print("Reading url info for ", "line:", row, url[0])
+                # try:
+                #     response = requests.get(url[0], headers)
+                # except requests.exceptions.MissingSchema:
+                #     return
 
-                try:
-                    response = requests.get(url[0], headers)
-                except requests.exceptions.MissingSchema:
-                    return
-
-                soup = BeautifulSoup(response.content, features="lxml")
+                r = session.get(url[0])
+                r.html.render()
+                soup = BeautifulSoup(r.html.raw_html, features="lxml")
+                # soup = BeautifulSoup(response.content, features="lxml")
 
                 if "www.dacardworld.com" in url[0]:
-                    output_range = da_output_range[0] + str(row) + ":" + da_output_range[1] + str(row)
-                    values = parse_da(soup)
-                    batch_list.append({'range': output_range, 'values': values})
-                # TODO: reset row to 2
+                    print("Reading url info for ", "line:", da_row, url[0])
+                    output_range = da_output_range[0] + str(da_row) + ":" + da_output_range[1] + str(da_row)
+                    values = retry(parse_da, soup, MAX_RETRIES)
+                    da_row += 1
                 elif "shop.tcgplayer.com" in url[0]:
-                    output_range = tcg_output_range[0] + str(row) + ":" + tcg_output_range[1] + str(row)
-                    values = parse_tcg(soup)
+                    print("Reading url info for ", "line:", tcg_row, url[0])
+                    output_range = tcg_output_range[0] + str(tcg_row) + ":" + tcg_output_range[1] + str(tcg_row)
+                    values = retry(parse_tcg, soup, MAX_RETRIES)
+                    tcg_row += 1
                     print(values)
                 elif "www.trollandtoad.com" in url[0]:
-                    output_range = tnt_output_range[0] + str(row) + ":" + tnt_output_range[1] + str(row)
+                    print("Reading url info for ", "line:", tnt_row, url[0])
+                    output_range = tnt_output_range[0] + str(tnt_row) + ":" + tnt_output_range[1] + str(tnt_row)
                     values = parse_tnt(soup)
+                    tnt_row += 1
                     print(values)
                 elif "collectorstore.com" in url[0]:
-                    output_range = cs_output_range[0] + str(row) + ":" + cs_output_range[1] + str(row)
+                    print("Reading url info for ", "line:", cs_row, url[0])
+                    output_range = cs_output_range[0] + str(cs_row) + ":" + cs_output_range[1] + str(cs_row)
                     values = parse_tnt(soup)
+                    cs_row += 1
                     print(values)
 
-            row += 1
+                batch_list.append({'range': output_range, 'values': values})
         sheet.batch_update(batch_list)
 
 
@@ -108,15 +117,77 @@ def parse_da(soup):
 
 
 def parse_tcg(soup):
-    return [1, 2, 3, 4]
+    print(soup)
+    tcg_title = soup.find("div", {"class": 'product-details__name'})  # Grabs item Name
+    print("TCG TITLE: ", tcg_title)
+    try:
+        # Grabs price
+        tcg_price = soup.find(class_='spotlight__price')
+    except AttributeError:
+        tcg_price = ""
+
+    tcg_desc = soup.find(class_='product-details__details-description').get_text()  # Grabs Description
+    tcg_pic = soup.find(class_='product-details__info').findChild('img')['src']
+    tcg_stock_text = ""
+
+    # logic for stock information
+    if tcg_price == "":
+        tcg_stock_text = "Out Of Stock"
+    else:
+        tcg_stock_text = "In Stock"
+
+    return [[tcg_title, tcg_price, tcg_desc, tcg_pic, tcg_stock_text]]
 
 
 def parse_tnt(soup):
-    return [5, 6, 7, 8]
+    tnt_title = soup.find('h1').get_text().strip()
+    tnt_pics = soup.find(id='main-prod-img').findChild()['data-src']
+
+    try:
+        tnt_price = float(soup.find(class_="d-flex flex-column").span.get_text().strip('$'))
+    except AttributeError:
+        tnt_price = ""
+
+    tnt_stock_text = ""
+
+    # logic for stock information
+    if tnt_price == "":
+        tnt_stock_text = "Out of Stock"
+    else:
+        tnt_stock_text = "In Stock"
+
+    return [[tnt_title, tnt_price, tnt_pics, tnt_stock_text]]
 
 
 def parse_cs(soup):
-    return [9, 10, 11, 12]
+    cs_title = soup.find('h1').get_text().strip()
+
+    try:
+        cs_price = float(soup.find(class_="price price--withoutTax").get_text().strip("$"))
+    except AttributeError:
+        cs_price = ""
+
+    cs_pic = soup.find(class_='productView-img-container').findChild()['href']
+
+    # logic for stock information
+    if cs_price == "":
+        cs_stock_text = "Out of Stock"
+    else:
+        cs_stock_text = "In Stock"
+
+    return [[cs_title, cs_price, cs_pic, cs_stock_text]]
+
+
+def retry(func, soup, max_tries):
+    for i in range(0, max_tries):
+        try:
+            results = func(soup)
+        except Exception as ex:
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print(message)
+        else:
+            return results
 
 
 if __name__ == "__main__":
