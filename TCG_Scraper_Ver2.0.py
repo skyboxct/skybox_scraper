@@ -25,60 +25,45 @@ def main():
     client = gspread.authorize(creds)
     spreadsheet = client.open('Square TCG Scraper Ver1.1')
     sheet = spreadsheet.get_worksheet(1)
+    records = sheet.get_all_records()
 
-    rows = sheet.get_all_records()
-    # Get all of the URLs in one object
-    da_url_list = sheet.batch_get(['Y2:Y' + str(len(rows) + 1)])[0]
-    tcg_url_list = sheet.batch_get(['Z2:Z' + str(len(rows) + 1)])[0]
-    tnt_url_list = sheet.batch_get(['AA2:AA' + str(len(rows) + 1)])[0]
-    cs_url_list = sheet.batch_get(['AB2:AB' + str(len(rows) + 1)])[0]
-
-    total_list = da_url_list + tcg_url_list + tnt_url_list + cs_url_list
-    scrape_url_list(total_list, sheet)
+    scrape_url_list(records, sheet)
 
 
-def scrape_url_list(urls, sheet):
+def scrape_url_list(records, sheet):
     # Dictionary to hold host configurations and row 'cursor'
     host_configs = {
-        "DA": {"range": da_output_range, "row": 2, "parser_func": parse_da, "parser_param": None},
-        "TCG": {"range": tcg_output_range, "row": 2, "parser_func": parse_tcg, "parser_param": None},
-        "TNT": {"range": tnt_output_range, "row": 2, "parser_func": parse_tnt, "parser_param": None},
-        "CS": {"range": cs_output_range, "row": 2, "parser_func": parse_cs, "parser_param": None}
+        "DA": {"range": da_output_range, "parser_func": parse_da},
+        "TCG": {"range": tcg_output_range, "parser_func": parse_tcg},
+        "TNT": {"range": tnt_output_range, "parser_func": parse_tnt},
+        "CS": {"range": cs_output_range, "parser_func": parse_cs}
     }
 
-    for start_index in range(0, len(urls), 10):
+    row = 2
+    for start_index in range(0, len(records), 10):
         batch_list = []
-        for url in urls[start_index:start_index + 10]:  # The first item is a list containing all the information
-            if url:
-                try:
-                    host = get_host(url[0])
-                    print("Reading url info for ", "line:", host_configs[host]["row"], url[0])
-
-                    response_html = retry(session.get, url[0], MAX_RETRIES)
-                    response_html.html.render()
-                except pyppeteer.errors.TimeoutError:
-                    # TODO: Fix frequent timeouts to TNT
-                    print("Error: request timed out to", url[0])
-                    host_configs[host]["row"] += 1
-                    continue
-                except KeyError:
-                    print("configuration not found for host: ", host, "\nURL:", url[0])
-                    continue
+        for product in records[start_index:start_index + 10]:
+            print("\nReading product information for row", row)
+            urls = [product["DA url"], product["TCG url"], product["TNT url"], product["CS url"]]
+            product_pages = get_product_pages(urls)
+            for page in product_pages:
+                print("   Reading url info for", page["url"])
+                host = page["host"]
+                page_html = page["html"]
 
                 if host == "TCG":
-                    host_configs[host]["parser_param"] = response_html
+                    parser_parameter = page_html
                 else:
-                    host_configs[host]["parser_param"] = BeautifulSoup(response_html.html.raw_html, features="lxml")
+                    parser_parameter = BeautifulSoup(page_html.html.raw_html, features="lxml")
 
-                output_range = host_configs[host]["range"][0] + str(host_configs[host]["row"]) + ":" + host_configs[host]["range"][1] + str(host_configs[host]["row"])
-                values = retry(host_configs[host]["parser_func"], host_configs[host]["parser_param"], MAX_RETRIES)
-                host_configs[host]["row"] += 1
-                print(values)
+                output_range = host_configs[host]["range"][0] + str(row) + ":" + host_configs[host]["range"][1] + str(row)
+                values = retry(host_configs[host]["parser_func"], parser_parameter, MAX_RETRIES)
+                print("   Values: ", values)
 
                 if output_range and values:
                     batch_list.append({'range': output_range, 'values': values})
-
-        print("Pushing lines", start_index, "-", start_index + 10, "to sheet")
+            row += 1
+        print("\nPushing lines", start_index + 2, "-", start_index + 12, "to sheet\n")
         sheet.batch_update(batch_list)
     # TODO: roll up parsing errors into output before exit
 
@@ -199,15 +184,18 @@ def parse_cs(soup):
 
 
 def retry(func, param, max_retries):
+    return_ex = None
     for i in range(0, max_retries+1):
         try:
             results = func(param)
         except Exception as ex:
-            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-            message = template.format(type(ex).__name__, ex.args)
+            template = "An exception of type {0} occurred."
+            message = template.format(type(ex).__name__)
+            return_ex = ex
         else:
             return results
     print("Parse failed after", i+1, "attempts:", message)
+    raise return_ex
 
 
 def get_host(url):
@@ -222,6 +210,22 @@ def get_host(url):
     else:
         print("Unknown host for url:", url)
         return "Unknown"
+
+
+def get_product_pages(urls):
+    page_dict = []
+    for url in urls:
+        if url:
+            host = get_host(url)
+            try:
+                response_html = retry(session.get, url, MAX_RETRIES)
+                response_html.html.render()
+
+                page_dict.append({"host": host, "url": url, "html": response_html})
+            except pyppeteer.errors.TimeoutError:
+                continue
+    return page_dict
+
 
 if __name__ == "__main__":
     main()
