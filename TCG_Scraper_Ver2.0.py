@@ -11,7 +11,6 @@ tcg_output_range = ["G", "K"]
 tnt_output_range = ["L", "O"]
 cs_output_range = ["P", "S"]
 
-
 # "client_email": "tcgscraper@tcg-scraper.iam.gserviceaccount.com"
 # TODO: Optimize Speed
 
@@ -47,7 +46,7 @@ def scrape_url_list(urls, sheet):
         "CS": {"range": cs_output_range, "row": 2, "parser_func": parse_cs, "parser_param": None}
     }
 
-    for start_index in range(0, len(urls), 40):
+    for start_index in range(0, len(urls), 10):
         batch_list = []
         for url in urls[start_index:start_index + 10]:  # The first item is a list containing all the information
             if url:
@@ -55,7 +54,7 @@ def scrape_url_list(urls, sheet):
                     host = get_host(url[0])
                     print("Reading url info for ", "line:", host_configs[host]["row"], url[0])
 
-                    response_html = session.get(url[0])
+                    response_html = retry(session.get, url[0], MAX_RETRIES)
                     response_html.html.render()
                 except pyppeteer.errors.TimeoutError:
                     # TODO: Fix frequent timeouts to TNT
@@ -79,6 +78,7 @@ def scrape_url_list(urls, sheet):
                 if output_range and values:
                     batch_list.append({'range': output_range, 'values': values})
 
+        print("Pushing lines", start_index, "-", start_index + 10, "to sheet")
         sheet.batch_update(batch_list)
     # TODO: roll up parsing errors into output before exit
 
