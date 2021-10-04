@@ -27,11 +27,11 @@ def main():
     sheet = spreadsheet.get_worksheet(1)
     records = sheet.get_all_records()
 
-    scrape_url_list(records, sheet)
+    scrape_products(records, sheet)
 
 
-def scrape_url_list(records, sheet):
-    # Dictionary to hold host configurations and row 'cursor'
+def scrape_products(records, sheet):
+    # Dictionary to hold host configurations
     host_configs = {
         "DA": {"range": da_output_range, "parser_func": parse_da},
         "TCG": {"range": tcg_output_range, "parser_func": parse_tcg},
@@ -58,9 +58,9 @@ def scrape_url_list(records, sheet):
 
                 output_range = host_configs[host]["range"][0] + str(row) + ":" + host_configs[host]["range"][1] + str(row)
                 values = retry(host_configs[host]["parser_func"], parser_parameter, MAX_RETRIES)
-                print("   Values: ", values)
 
                 if output_range and values:
+                    print("   Values: ", values)
                     batch_list.append({'range': output_range, 'values': values})
             row += 1
         print("\nPushing lines", start_index + 2, "-", start_index + 12, "to sheet\n")
@@ -172,7 +172,10 @@ def parse_cs(soup):
     except AttributeError:
         cs_price = ""
 
-    cs_pic = soup.find(class_='productView-img-container').findChild()['href']
+    try:
+        cs_pic = soup.find(class_='productView-img-container').findChild()['href']
+    except AttributeError:
+        cs_pic = ""
 
     # logic for stock information
     if cs_price == "":
@@ -184,7 +187,6 @@ def parse_cs(soup):
 
 
 def retry(func, param, max_retries):
-    return_ex = None
     for i in range(0, max_retries+1):
         try:
             results = func(param)
@@ -194,8 +196,8 @@ def retry(func, param, max_retries):
             return_ex = ex
         else:
             return results
-    print("Parse failed after", i+1, "attempts:", message)
-    raise return_ex
+    print("Function '", func.__name__, "' failed after", i+1, "attempts:", message)
+    return None
 
 
 def get_host(url):
@@ -217,13 +219,11 @@ def get_product_pages(urls):
     for url in urls:
         if url:
             host = get_host(url)
-            try:
-                response_html = retry(session.get, url, MAX_RETRIES)
-                response_html.html.render()
-
+            response_html = retry(session.get, url, MAX_RETRIES)
+            if response_html:
+                response_html.html.render(timeout=300)
                 page_dict.append({"host": host, "url": url, "html": response_html})
-            except pyppeteer.errors.TimeoutError:
-                continue
+
     return page_dict
 
 
