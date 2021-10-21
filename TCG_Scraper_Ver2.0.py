@@ -1,10 +1,11 @@
 import gspread
 import pyppeteer
+import requests_html
 from bs4 import BeautifulSoup
 from oauth2client.service_account import ServiceAccountCredentials
 from requests_html import HTMLSession
 
-MAX_RETRIES = 2
+MAX_RETRIES = 5
 
 da_output_range = ["A", "F"]
 tcg_output_range = ["G", "K"]
@@ -13,8 +14,6 @@ cs_output_range = ["P", "S"]
 
 # "client_email": "tcgscraper@tcg-scraper.iam.gserviceaccount.com"
 # TODO: Optimize Speed
-
-session = HTMLSession()
 
 
 def main():
@@ -47,7 +46,7 @@ def scrape_products(records, sheet):
             urls = [product["DA url"], product["TCG url"], product["TNT url"], product["CS url"]]
             product_pages = get_product_pages(urls)
             for page in product_pages:
-                print("   Reading url info for", page["url"])
+                print("   Reading page for", page["url"])
                 host = page["host"]
                 page_html = page["html"]
 
@@ -104,34 +103,34 @@ def parse_da(soup):
 def parse_tcg(r):
     tcg_title_field = r.html.find(".product-details__name", first=True)  # Grabs item Name
     if tcg_title_field is None:
-        print("Error: title not found in html")
+        print("     Error: title not found in html")
         tcg_title = ""
     else:
         tcg_title = tcg_title_field.text
 
     tcg_price_field = r.html.find(".spotlight__price", first=True)  # Grabs price
     if tcg_price_field is None:
-        print("Error: price not found in html")
+        print("    Error: price not found in html")
         tcg_price = ""
     else:
         tcg_price = tcg_price_field.text
 
     tcg_desc_field = r.html.find(".pd-description__description", first=True)  # Grabs Description
     if tcg_desc_field is None:
-        print("Error: description not found in html")
+        print("    Error: description not found in html")
         tcg_desc = ""
     else:
         tcg_desc = tcg_desc_field.text
 
     tcg_pic_field = r.html.find(".product-details__product", first=True)  # Grabs main picture
     if tcg_pic_field is None:
-        print("Error: pic field not found in html")
+        print("    Error: pic field not found in html")
         tcg_pic = ""
     else:
         try:
             tcg_pic = tcg_pic_field.find(".progressive-image-main", first=True).attrs["src"]
         except KeyError:
-            print("Error: source link not found in pic field")
+            print("    Error: source link not found in pic field")
             tcg_pic = ""
 
     # logic for stock information
@@ -193,7 +192,6 @@ def retry(func, param, max_retries):
         except Exception as ex:
             template = "An exception of type {0} occurred."
             message = template.format(type(ex).__name__)
-            return_ex = ex
         else:
             return results
     print("Function '", func.__name__, "' failed after", i+1, "attempts:", message)
@@ -218,12 +216,18 @@ def get_product_pages(urls):
     page_dict = []
     for url in urls:
         if url:
+            session = HTMLSession()
             host = get_host(url)
+            print("Connecting to", url)
             response_html = retry(session.get, url, MAX_RETRIES)
             if response_html:
-                response_html.html.render(timeout=300)
-                page_dict.append({"host": host, "url": url, "html": response_html})
-
+                try:
+                    print("Rendering html")
+                    response_html.html.render(timeout=100, retries=MAX_RETRIES)
+                    page_dict.append({"host": host, "url": url, "html": response_html})
+                except pyppeteer.errors.TimeoutError as ex:
+                    print("Failed to render page for", url, "after", MAX_RETRIES, "attempts:", type(ex).__name__)
+            session.close()
     return page_dict
 
 
