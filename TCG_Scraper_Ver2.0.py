@@ -217,6 +217,7 @@ def get_product_pages(urls):
     for url in urls:
         if url:
             session = HTMLSession()
+            session.headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:76.0) Gecko/20100101 Firefox/76.0'}
             host = get_host(url)
             print("Connecting to", url)
             response_html = retry(session.get, url, MAX_RETRIES)
@@ -226,6 +227,8 @@ def get_product_pages(urls):
                     response_html.html.render(timeout=100, retries=MAX_RETRIES)
                     page_dict.append({"host": host, "url": url, "html": response_html})
                 except pyppeteer.errors.TimeoutError as ex:
+                    print("Failed to render page for", url, "after", MAX_RETRIES, "attempts:", type(ex).__name__)
+                except pyppeteer.errors.PageError as ex:
                     print("Failed to render page for", url, "after", MAX_RETRIES, "attempts:", type(ex).__name__)
             session.close()
     return page_dict
