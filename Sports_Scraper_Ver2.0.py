@@ -16,7 +16,7 @@ def main():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds = ServiceAccountCredentials.from_json_keyfile_name('sportscreds.json', scope)
     client = gspread.authorize(creds)
-    spreadsheet = client.open('Square Sports Scraper Ver2.0')
+    spreadsheet = client.open('Shopify Sports Scraper Ver2.0')
     sheet = spreadsheet.get_worksheet(1)
     records = sheet.get_all_records()
 
