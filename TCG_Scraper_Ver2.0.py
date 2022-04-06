@@ -113,7 +113,7 @@ def parse_tcg(r):
         print("    Error: price not found in html")
         tcg_price = ""
     else:
-        tcg_price = tcg_price_field.text
+        tcg_price = float(tcg_price_field.text.replace("$", ""))
 
     tcg_desc_field = r.html.find(".pd-description__description", first=True)  # Grabs Description
     if tcg_desc_field is None:
