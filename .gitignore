@@ -131,3 +131,6 @@ dmypy.json
 #Finder nonsense
 .DS_Store
 .idea
+
+# Server access keys
+*.pem
