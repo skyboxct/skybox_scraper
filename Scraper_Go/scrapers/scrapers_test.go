@@ -9,12 +9,16 @@ import (
 func TestNewScraper(t *testing.T){
 	t.Run("Successfully creates new scraper from config", func(t *testing.T) {
 		config := ScraperConfig{
-			scope:               []string{"https://testscope.com"},
-			credentialsFilePath: "testdata/testcreds.json",
+			Scope:               []string{"https://testscope.com"},
+			CredentialsFilePath: "testdata/testcreds.json",
+			SpreadsheetID:       "testID",
+			Name: "testName",
 		}
 		scraper, err := NewScraper(config)
 		assert.NoError(t, err)
 		assert.NotNil(t, scraper)
 		assert.NotNil(t, scraper.sheetsSvc)
+		assert.Equal(t, config.SpreadsheetID, scraper.spreadsheetID)
+		assert.Equal(t, config.Name, scraper.Name)
 	})
 }

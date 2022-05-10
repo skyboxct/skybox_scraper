@@ -23,27 +23,31 @@ const (
 )
 
 type WebScraper struct{
+	Name string
 	sheetsSvc *sheets.Service
+	spreadsheetID string
 }
 
 type ScraperConfig struct{
-	scope []string
-	credentialsFilePath string
+	Name				string
+	Scope               []string
+	CredentialsFilePath string
+	SpreadsheetID       string
 }
 
 func NewScraper(scraperConfig ScraperConfig) (WebScraper, error){
 	ctx := context.Background()
-	b, err := ioutil.ReadFile(scraperConfig.credentialsFilePath)
+	b, err := ioutil.ReadFile(scraperConfig.CredentialsFilePath)
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to read client secret file: %v", err)
 	}
 
 	// If modifying these scopes, delete your previously saved token.json.
-	config, err := google.ConfigFromJSON(b, scraperConfig.scope...)
+	config, err := google.ConfigFromJSON(b, scraperConfig.Scope...)
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
-	client, err := getClient(scraperConfig.credentialsFilePath, config)
+	client, err := getClient(scraperConfig.CredentialsFilePath, config)
 	if err != nil{
 		return WebScraper{}, fmt.Errorf("unable to retrieve Sheets client: %v", err)
 	}
@@ -54,7 +58,9 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error){
 	}
 
 	return WebScraper{
+		Name: scraperConfig.Name,
 		sheetsSvc: srv,
+		spreadsheetID: scraperConfig.SpreadsheetID,
 	}, nil
 }
 
@@ -82,4 +88,7 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	return tok, err
 }
 
-func (scraper *WebScraper) scrape
+func (s *WebScraper) ScrapeProducts() error{
+	fmt.Printf("Starting Scraper: %s\n", s.Name)
+	return nil
+}
