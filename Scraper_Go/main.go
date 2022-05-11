@@ -10,8 +10,8 @@ const (
 	sportsSpreadsheetID = ""
 	tcgSpreadsheetID = ""
 	
-	sportsCredsFilePath = "sportscreds.json"
-	tcgCredsFilePath = "tcgcreds.json"
+	sportsCredsFilePath = "../sportscreds.json"
+	tcgCredsFilePath = "../tcgcreds.json"
 )
 
 const(
@@ -20,11 +20,11 @@ const(
 )
 
 func main() {
-	fmt.Println("Starting Scraper")
 	var registeredScrapers []scrapers.WebScraper
 
 	// Register Sports Scraper
-	if len(os.Args) == 0 || contains(os.Args, "sports"){
+	if len(os.Args) == 1 || contains(os.Args, "sports"){
+		fmt.Println("Init Sports")
 		sportsConfig := scrapers.ScraperConfig{
 			Scope: []string{"https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"},
 			SpreadsheetID: sportsSpreadsheetID,
@@ -32,14 +32,15 @@ func main() {
 		}
 		sportsScraper, err := scrapers.NewScraper(sportsConfig)
 		if err != nil{
-			fmt.Printf("Error: Failed to initialize sports scraper: %v", err)
+			fmt.Printf("Error: Failed to initialize sports scraper: %v\n", err)
 		} else{
 			registeredScrapers = append(registeredScrapers, sportsScraper)
 		}
 	}
 
 	// Register TCG Scraper
-	if len(os.Args) == 0 || contains(os.Args, "tcg"){
+	if len(os.Args) == 1 || contains(os.Args, "tcg"){
+		fmt.Println("Init TCG")
 		tcgConfig := scrapers.ScraperConfig{
 			Scope: []string{"https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"},
 			SpreadsheetID: tcgSpreadsheetID,
@@ -47,7 +48,7 @@ func main() {
 		}
 		tcgScraper, err := scrapers.NewScraper(tcgConfig)
 		if err != nil{
-			fmt.Printf("Error: Failed to initialize tcg scraper: %v", err)
+			fmt.Printf("Error: Failed to initialize tcg scraper: %v\n", err)
 		} else{
 			registeredScrapers = append(registeredScrapers, tcgScraper)
 		}
@@ -55,9 +56,10 @@ func main() {
 
 	//TODO: Run scrapers concurrently?
 	for _, scraper := range registeredScrapers{
+		fmt.Printf("Strating %s scraper", scraper.Name)
 		err := scraper.ScrapeProducts()
 		if err != nil{
-			fmt.Printf("Error in %s Scraper: %v", scraper.Name, err)
+			fmt.Printf("Error in %s Scraper: %v\n", scraper.Name, err)
 		}
 	}
 }

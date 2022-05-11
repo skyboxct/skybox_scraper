@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
@@ -43,11 +44,11 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error){
 	}
 
 	// If modifying these scopes, delete your previously saved token.json.
-	config, err := google.ConfigFromJSON(b, scraperConfig.Scope...)
+	config, err := google.JWTConfigFromJSON(b, scraperConfig.Scope...)
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
-	client, err := getClient(scraperConfig.CredentialsFilePath, config)
+	client, err := getClient(config)
 	if err != nil{
 		return WebScraper{}, fmt.Errorf("unable to retrieve Sheets client: %v", err)
 	}
@@ -65,15 +66,8 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error){
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func getClient(tokFile string, config *oauth2.Config) (*http.Client, error) {
-	// The file token.json stores the user's access and refresh tokens, and is
-	// created automatically when the authorization flow completes for the first
-	// time.
-	tok, err := tokenFromFile(tokFile)
-	if err != nil {
-		return nil, err
-	}
-	return config.Client(context.Background(), tok), nil
+func getClient(config *jwt.Config) (*http.Client, error) {
+	return config.Client(context.Background()), nil
 }
 
 // Retrieves a token from a local file.
