@@ -22,3 +22,12 @@ func TestNewScraper(t *testing.T){
 		assert.Equal(t, config.Name, scraper.Name)
 	})
 }
+
+func TestGetProductUrls(t *testing.T){
+	t.Run("Successfully read product urls", func(t *testing.T) {
+
+	})
+	t.Run("Return error on fail to read product urls", func(t *testing.T) {
+
+	})
+}

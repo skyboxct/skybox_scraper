@@ -2,17 +2,16 @@ package scrapers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
+	"strings"
+	"sync"
+	"time"
 
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/option"
-	"google.golang.org/api/sheets/v4"
+	"gopkg.in/Iwark/spreadsheet.v2"
 )
 
 // Custom user agent.
@@ -23,21 +22,25 @@ const (
 		"Safari/537.36"
 )
 
-type WebScraper struct{
-	Name string
-	sheetsSvc *sheets.Service
-	spreadsheetID string
+const maxWorkers = 10
+
+type WebScraper struct {
+	Name             string
+	sheetsSvc        *spreadsheet.Service
+	spreadsheetID    string
+	productSheetName string
+	numWorkers       int
 }
 
-type ScraperConfig struct{
-	Name				string
+type ScraperConfig struct {
+	Name                string
 	Scope               []string
 	CredentialsFilePath string
 	SpreadsheetID       string
+	ProductSheetName    string
 }
 
-func NewScraper(scraperConfig ScraperConfig) (WebScraper, error){
-	ctx := context.Background()
+func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
 	b, err := ioutil.ReadFile(scraperConfig.CredentialsFilePath)
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to read client secret file: %v", err)
@@ -49,40 +52,59 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error){
 		return WebScraper{}, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
 	client, err := getClient(config)
-	if err != nil{
+	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to retrieve Sheets client: %v", err)
 	}
 
-	srv, err := sheets.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		return WebScraper{}, fmt.Errorf("unable to retrieve Sheets service: %v", err)
-	}
+	srv := spreadsheet.NewServiceWithClient(client)
 
 	return WebScraper{
-		Name: scraperConfig.Name,
-		sheetsSvc: srv,
-		spreadsheetID: scraperConfig.SpreadsheetID,
+		Name:             scraperConfig.Name,
+		sheetsSvc:        srv,
+		spreadsheetID:    scraperConfig.SpreadsheetID,
+		productSheetName: scraperConfig.ProductSheetName,
+		numWorkers:       maxWorkers,
 	}, nil
 }
 
-// Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *jwt.Config) (*http.Client, error) {
 	return config.Client(context.Background()), nil
 }
 
-// Retrieves a token from a local file.
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
+func (s *WebScraper) ScrapeProducts() error {
+	//Fetch spreadsheet data
+	productSpreadsheet, err := s.sheetsSvc.FetchSpreadsheet(s.spreadsheetID)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to fetch spreadsheet '%s': %v", s.spreadsheetID, err)
 	}
-	defer f.Close()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
-}
 
-func (s *WebScraper) ScrapeProducts() error{
-	fmt.Printf("Starting Scraper: %s\n", s.Name)
+	productSheet, err := productSpreadsheet.SheetByTitle(s.productSheetName)
+	if err != nil {
+		return fmt.Errorf("failed to get sheet '%s': %v", s.productSheetName, err)
+	}
+
+	//Fetch all cells containing a product URL
+	var urlCells []spreadsheet.Cell
+	for _, column := range productSheet.Columns {
+		if strings.Contains(column[0].Value, "url") {
+			urlCells = append(urlCells, column[1:]...)
+		}
+	}
+
+	//Feed cells into parsers asynchronously
+	//TODO: Not suck
+	var wg sync.WaitGroup
+	for i := 0; i < len(urlCells); i += s.numWorkers {
+		wg.Add(s.numWorkers)
+		for j := i; j < i+s.numWorkers; j++ {
+			go func() {
+				defer wg.Done()
+				fmt.Println(urlCells[j].Value)
+				time.Sleep(1)
+			}()
+		}
+		wg.Wait()
+	}
+
 	return nil
 }
