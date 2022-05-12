@@ -1,5 +1,6 @@
 To create an exe:
   1. pip install -r requirements.txt
   2. pip install pyinstaller
-  3. pyinstaller -y --onefile [SCRIPT] --copy-metadata pyppeteer
+  3. pyinstaller -y --onefile TCG_Scraper_Ver2.0.py --copy-metadata pyppeteer
+  4. pyinstaller -y --onefile Sports_Scraper_Ver2.0.py --copy-metadata pyppeteer
     *copy metadata gathers version info to avoid exception
