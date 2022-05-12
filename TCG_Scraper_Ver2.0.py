@@ -69,11 +69,20 @@ def scrape_products(records, sheet):
 
 def parse_da(soup):
     title = soup.find('h1').get_text().strip()
+
     try:
-        # Grab price info
-        da_price = float(soup.find(class_='price large').get_text().strip("$").replace(',', ''))
+        # Grab Sale price info
+        da_price = float(soup.find(class_='price discount large').get_text().strip("$").replace(',', ''))
+        print("DISCOUNTED! REAL PRICE: ", da_price)
     except AttributeError:
         da_price = ""
+
+    if da_price == "":
+        try:
+            # Grab price info
+            da_price = float(soup.find(class_='price large').get_text().strip("$").replace(',', ''))
+        except AttributeError:
+            da_price = ""
 
     try:
         # Need to get around no eight columns 'NoneType' Object

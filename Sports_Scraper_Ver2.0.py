@@ -62,11 +62,20 @@ def scrape_products(records, sheet):
 
 def parse_da(soup):
     title = soup.find('h1').get_text().strip()
+
     try:
-        # Grab price info
-        price = float(soup.find(class_='price large').get_text().strip("$").replace(',', ''))
+        # Grab Sale price info
+        price = float(soup.find(class_='price discount large').get_text().strip("$").replace(',', ''))
+        print("DISCOUNTED! REAL PRICE: ", price)
     except AttributeError:
         price = ""
+
+    if price == "":
+        try:
+            # Grab price info
+            price = float(soup.find(class_='price large').get_text().strip("$").replace(',', ''))
+        except AttributeError:
+            price = ""
 
     desc = soup.find(class_='eight columns').get_text().strip()  # grab description
     pic = soup.find(class_='panel radius').findChild()['href']  # grab pic info
