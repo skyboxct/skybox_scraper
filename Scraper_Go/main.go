@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"scraper/scrapers"
 )
 
@@ -29,6 +30,7 @@ func main() {
 	if len(os.Args) == 1 || contains(os.Args, "sports") {
 		fmt.Println("Init Sports")
 		sportsConfig := scrapers.ScraperConfig{
+			Name:                "Sports",
 			Scope:               []string{"https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"},
 			SpreadsheetID:       sportsSpreadsheetID,
 			CredentialsFilePath: sportsCredsFilePath,
@@ -46,6 +48,7 @@ func main() {
 	if len(os.Args) == 1 || contains(os.Args, "tcg") {
 		fmt.Println("Init TCG")
 		tcgConfig := scrapers.ScraperConfig{
+			Name:                "TCG",
 			Scope:               []string{"https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"},
 			SpreadsheetID:       tcgSpreadsheetID,
 			CredentialsFilePath: tcgCredsFilePath,
@@ -61,7 +64,7 @@ func main() {
 
 	//TODO: Run scrapers concurrently?
 	for _, scraper := range registeredScrapers {
-		fmt.Printf("Strating %s scraper", scraper.Name)
+		fmt.Printf("Starting %s scraper", scraper.Name)
 		err := scraper.ScrapeProducts()
 		if err != nil {
 			fmt.Printf("Error in %s Scraper: %v\n", scraper.Name, err)

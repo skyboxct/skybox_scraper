@@ -3,8 +3,10 @@ package scrapers
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	netUrl "net/url"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +14,8 @@ import (
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"gopkg.in/Iwark/spreadsheet.v2"
+
+	"scraper/parser"
 )
 
 // Custom user agent.
@@ -22,7 +26,10 @@ const (
 		"Safari/537.36"
 )
 
-const maxWorkers = 10
+const (
+	httpTimeout = 60 * time.Second
+	maxWorkers  = 10
+)
 
 type WebScraper struct {
 	Name             string
@@ -30,6 +37,7 @@ type WebScraper struct {
 	spreadsheetID    string
 	productSheetName string
 	numWorkers       int
+	httpClient       http.Client
 }
 
 type ScraperConfig struct {
@@ -38,6 +46,12 @@ type ScraperConfig struct {
 	CredentialsFilePath string
 	SpreadsheetID       string
 	ProductSheetName    string
+}
+
+type Product struct {
+	row    uint
+	errors []error
+	urls   []spreadsheet.Cell
 }
 
 func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
@@ -51,7 +65,7 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
-	client, err := getClient(config)
+	client, err := getSheetsClient(config)
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to retrieve Sheets client: %v", err)
 	}
@@ -64,10 +78,11 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
 		spreadsheetID:    scraperConfig.SpreadsheetID,
 		productSheetName: scraperConfig.ProductSheetName,
 		numWorkers:       maxWorkers,
+		httpClient:       http.Client{Timeout: httpTimeout},
 	}, nil
 }
 
-func getClient(config *jwt.Config) (*http.Client, error) {
+func getSheetsClient(config *jwt.Config) (*http.Client, error) {
 	return config.Client(context.Background()), nil
 }
 
@@ -87,24 +102,69 @@ func (s *WebScraper) ScrapeProducts() error {
 	var urlCells []spreadsheet.Cell
 	for _, column := range productSheet.Columns {
 		if strings.Contains(column[0].Value, "url") {
-			urlCells = append(urlCells, column[1:]...)
+			for _, cell := range column {
+				if len(cell.Value) > 0 {
+					urlCells = append(urlCells, cell)
+					fmt.Printf("URL CELL: ROW = %v  COL = %v  VAL = %v\n", cell.Row, cell.Column, cell.Value)
+				}
+			}
 		}
 	}
 
-	//Feed cells into parsers asynchronously
-	//TODO: Not suck
+	urlCells = []spreadsheet.Cell{productSheet.Columns[17][1]}
+	fmt.Println(urlCells)
+
 	var wg sync.WaitGroup
-	for i := 0; i < len(urlCells); i += s.numWorkers {
-		wg.Add(s.numWorkers)
-		for j := i; j < i+s.numWorkers; j++ {
-			go func() {
-				defer wg.Done()
-				fmt.Println(urlCells[j].Value)
-				time.Sleep(1)
-			}()
-		}
-		wg.Wait()
+	chFailures := make(chan error)
+	wg.Add(len(urlCells))
+	for _, urlCell := range urlCells {
+		func(cell spreadsheet.Cell, failChan chan error) {
+			defer wg.Done()
+			response, err := s.fetchUrl(cell.Value)
+			if err != nil {
+				fmt.Println(err)
+				failChan <- err
+			} else {
+				url, err := netUrl.Parse(cell.Value)
+				if err != nil {
+					failChan <- err
+				}
+
+				productParser, err := parser.NewProductParser(url.Host)
+				if err != nil {
+					fmt.Println(err)
+					failChan <- err
+				}
+
+				productDetails, err := productParser.ParseProductPage(response)
+				if err != nil {
+					fmt.Println(err)
+					failChan <- err
+				} else {
+					for attribute, value := range productDetails {
+						//productSheet.Update(int(cell.Row), getAttributeColumn(cell.Value, attribute), value)
+						fmt.Println("ATTRIBUTE AND VALUE: ", attribute, value)
+					}
+				}
+			}
+		}(urlCell, chFailures)
 	}
+	wg.Wait()
 
 	return nil
+}
+
+func (s *WebScraper) fetchUrl(url string) (io.ReadCloser, error) {
+
+	// Open url.
+	// Need to use http.Client in order to set a custom user agent:
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := s.httpClient.Do(req)
+
+	if err != nil || resp.StatusCode != 200 {
+		return nil, err
+	}
+
+	return resp.Body, nil
 }
