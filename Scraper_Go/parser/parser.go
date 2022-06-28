@@ -3,6 +3,8 @@ package parser
 import (
 	"fmt"
 	"io"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 //Todo: Make mapping of product attributes and their corresponding cells
@@ -11,8 +13,9 @@ var productAttributeCellsSports map[string]string = map[string]string{
 }
 
 type iParser interface {
-	ParseProductPage(page io.ReadCloser) (map[string]string, error)
+	ParseProductPage(page io.ReadCloser) (map[string]string, []error)
 	// todo: Get attribute positions?
+	// GetAttributeColumn(attribute string)(int)
 }
 
 type ProductParser struct {
@@ -36,4 +39,14 @@ func NewProductParser(host string) (iParser, error) {
 	default:
 		return nil, fmt.Errorf("unrecognized host: %v", host)
 	}
+}
+
+func getAttributeFromHtmlBasic(doc *goquery.Document, selector string, errorSlice *[]error) string {
+	result := doc.Find(selector).Text()
+	fmt.Println(result)
+	if len(result) == 0 {
+		*errorSlice = append(*errorSlice, fmt.Errorf("%s not found in html", selector))
+		return ""
+	}
+	return result
 }

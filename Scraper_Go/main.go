@@ -24,7 +24,11 @@ const (
 )
 
 func main() {
+	//Todo: Create config file to register scrapers
 	var registeredScrapers []scrapers.WebScraper
+	eventChan := make(chan scrapers.ScraperEvent)
+
+	go listenForEvents(eventChan)
 
 	// Register Sports Scraper
 	if len(os.Args) == 1 || contains(os.Args, "sports") {
@@ -35,6 +39,7 @@ func main() {
 			SpreadsheetID:       sportsSpreadsheetID,
 			CredentialsFilePath: sportsCredsFilePath,
 			ProductSheetName:    sportsProductSheetName,
+			ScraperEventChan:    eventChan,
 		}
 		sportsScraper, err := scrapers.NewScraper(sportsConfig)
 		if err != nil {
@@ -53,6 +58,7 @@ func main() {
 			SpreadsheetID:       tcgSpreadsheetID,
 			CredentialsFilePath: tcgCredsFilePath,
 			ProductSheetName:    tcgProductSheetName,
+			ScraperEventChan:    eventChan,
 		}
 		tcgScraper, err := scrapers.NewScraper(tcgConfig)
 		if err != nil {
@@ -64,10 +70,30 @@ func main() {
 
 	//TODO: Run scrapers concurrently?
 	for _, scraper := range registeredScrapers {
-		fmt.Printf("Starting %s scraper", scraper.Name)
+		fmt.Printf("Starting %s scraper\n", scraper.Name)
 		err := scraper.ScrapeProducts()
 		if err != nil {
 			fmt.Printf("Error in %s Scraper: %v\n", scraper.Name, err)
+		}
+	}
+}
+
+func listenForEvents(eventChan chan scrapers.ScraperEvent) {
+	//todo: collect error cells, retry mechanism
+	for {
+		select {
+		case event := <-eventChan:
+			switch event.Level {
+			case scrapers.Info:
+				fmt.Printf("[INFO] Scraper: %s ** Message: %s\n", event.Scraper, event.Message)
+			case scrapers.Warning:
+				fmt.Printf("[WARN] Scraper: %s ** Message: %s\n", event.Scraper, event.Message)
+			case scrapers.ScraperError:
+				fmt.Printf("[ERROR] Scraper: %s ** Message: %s\n Cell impacted:%v", event.Scraper, event.Message, event.Cell)
+			case scrapers.FatalError:
+				fmt.Printf("[FATAL] Error in %s Scraper!! %s\n Cell Impacted: %v\n This is a fatal error, scraper will shut down", event.Scraper, event.Message, event.Cell)
+				os.Exit(1)
+			}
 		}
 	}
 }

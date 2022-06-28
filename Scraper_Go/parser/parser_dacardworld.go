@@ -3,38 +3,34 @@ package parser
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 type DAParser struct {
+	errorChan chan error
 }
 
-func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, error) {
+func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, []error) {
+	// Collect non-fatal errors into a slice to be fed into event listener
+	var errs []error
 	attributes := map[string]string{}
 	doc, err := goquery.NewDocumentFromReader(page)
-
 	if err != nil {
 		fmt.Printf("Whoopsie in DA parse: %v\n", err)
+		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
-	//todo: make helper function w/ error channel
-	title := doc.Find("h1").Text()
-	fmt.Println(title)
-	if len(title) == 0 {
-		fmt.Println("TITLE NOT FOUND")
-	}
-	attributes["title"] = title
+	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1", &errs)
 
 	//Get Price: check for sale item and add non-sale price
-	//todo: remove $
-	price := doc.Find("price discount large").Text()
+	price := strings.ReplaceAll(doc.Find("price discount large").Text(), "$", "")
 	if len(price) == 0 {
 		//product not on sale, use normal price field
 		price = doc.Find("price large").Text()
 	}
 	if len(price) == 0 {
-		fmt.Println("PRICE NOT FOUND")
 		attributes["stock text"] = "Out of Stock"
 	} else {
 		attributes["stock text"] = "In Stock"
@@ -48,7 +44,7 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		price = doc.Find("moredetailsTab").Text()
 	}
 	if len(description) == 0 {
-		fmt.Println("DESCRIPTION NOT FOUND")
+		errs = append(errs, fmt.Errorf("description not found in html"))
 	}
 	attributes["description"] = description
 

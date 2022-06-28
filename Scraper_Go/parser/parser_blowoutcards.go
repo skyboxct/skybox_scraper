@@ -6,8 +6,9 @@ import (
 )
 
 type BCParser struct {
+	errorChan chan error
 }
 
-func (parser BCParser) ParseProductPage(page io.ReadCloser) (map[string]string, error) {
-	return nil, fmt.Errorf("Not Implemented!")
+func (parser BCParser) ParseProductPage(page io.ReadCloser) (map[string]string, []error) {
+	return nil, []error{fmt.Errorf("Not Implemented!")}
 }
