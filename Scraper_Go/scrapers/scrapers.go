@@ -51,12 +51,15 @@ type WebScraper struct {
 }
 
 type ScraperConfig struct {
-	Name                string
-	Scope               []string
-	CredentialsFilePath string
-	SpreadsheetID       string
-	ProductSheetName    string
-	ScraperEventChan    chan ScraperEvent
+	Name                string         `json:"name"`
+	Scope               []string       `json:"scope"`
+	CredentialsFilePath string         `json:"credentials_file_path"`
+	SpreadsheetID       string         `json:"spreadsheet_id"`
+	ProductSheetName    string         `json:"product_sheet_name"`
+	ProductAttributeMap map[string]int `json:"product_attribute_map"`
+	Enabled             bool           `json:"enabled"`
+
+	ScraperEventChan chan ScraperEvent `json:"-"`
 }
 
 type ScraperEvent struct {
@@ -99,7 +102,11 @@ func getSheetsClient(config *jwt.Config) (*http.Client, error) {
 	return config.Client(context.Background()), nil
 }
 
-func (s *WebScraper) ScrapeProducts() error {
+func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
+	if len(rowsToInclude) > 0 {
+		fmt.Println("Row override enabled!")
+	}
+
 	//Fetch spreadsheet data
 	productSpreadsheet, err := s.sheetsSvc.FetchSpreadsheet(s.spreadsheetID)
 	if err != nil {
@@ -108,7 +115,6 @@ func (s *WebScraper) ScrapeProducts() error {
 			Message: fmt.Sprintf("failed to fetch spreadsheet '%s': %v", s.spreadsheetID, err),
 			Scraper: s.Name,
 		}
-		//return fmt.Errorf("failed to fetch spreadsheet '%s': %v", s.spreadsheetID, err)
 	}
 
 	productSheet, err := productSpreadsheet.SheetByTitle(s.productSheetName)
@@ -118,7 +124,6 @@ func (s *WebScraper) ScrapeProducts() error {
 			Message: fmt.Sprintf("failed to get sheet '%s': %v", s.productSheetName, err),
 			Scraper: s.Name,
 		}
-		//return fmt.Errorf("failed to get sheet '%s': %v", s.productSheetName, err)
 	}
 
 	//Fetch all cells containing a product URL
@@ -126,67 +131,67 @@ func (s *WebScraper) ScrapeProducts() error {
 	for _, column := range productSheet.Columns {
 		if strings.Contains(column[0].Value, "url") {
 			for _, cell := range column[1:] {
-				if len(cell.Value) > 0 {
+				// Cell has a url and is not excluded by provided arguments
+				if len(cell.Value) > 0 && (len(rowsToInclude) == 0 || sliceContains(rowsToInclude, int(cell.Row))) {
 					urlCells = append(urlCells, cell)
 				}
 			}
 		}
 	}
 
-	urlCells = []spreadsheet.Cell{productSheet.Columns[17][1]}
-	s.scraperEventChan <- ScraperEvent{
-		Level:   Info,
-		Message: fmt.Sprintf("%v", urlCells),
-		Scraper: s.Name,
-	}
-
 	var wg sync.WaitGroup
 	wg.Add(len(urlCells))
 	for _, urlCell := range urlCells {
-		func(cell spreadsheet.Cell, s *WebScraper) {
+		go func(cell spreadsheet.Cell, s *WebScraper) {
+			fmt.Printf("CELL: %v\n", cell)
 			defer wg.Done()
-			response, err := s.fetchUrl(cell.Value)
+
+			url, err := netUrl.Parse(cell.Value)
 			if err != nil {
 				s.scraperEventChan <- ScraperEvent{
 					Level:   ScraperError,
 					Message: err.Error(),
 					Scraper: s.Name,
-					Cell:    urlCell,
+					Cell:    cell,
 				}
-			} else {
-				url, err := netUrl.Parse(cell.Value)
-				if err != nil {
-					s.scraperEventChan <- ScraperEvent{
-						Level:   ScraperError,
-						Message: err.Error(),
-						Scraper: s.Name,
-						Cell:    urlCell,
-					}
-				}
+				return
+			}
 
-				productParser, err := parser.NewProductParser(url.Host)
-				if err != nil {
-					s.scraperEventChan <- ScraperEvent{
-						Level:   ScraperError,
-						Message: err.Error(),
-						Scraper: s.Name,
-						Cell:    urlCell,
-					}
+			response, err := s.fetchUrl(url.String())
+			if err != nil {
+				s.scraperEventChan <- ScraperEvent{
+					Level:   ScraperError,
+					Message: err.Error(),
+					Scraper: s.Name,
+					Cell:    cell,
 				}
+				return
+			}
 
-				productDetails, errs := productParser.ParseProductPage(response)
-				for _, err := range errs {
-					s.scraperEventChan <- ScraperEvent{
-						Level:   ScraperError,
-						Message: err.Error(),
-						Scraper: s.Name,
-						Cell:    urlCell,
-					}
+			productParser, err := parser.NewProductParser(url.Host)
+			if err != nil {
+				s.scraperEventChan <- ScraperEvent{
+					Level:   ScraperError,
+					Message: err.Error(),
+					Scraper: s.Name,
+					Cell:    cell,
 				}
-				for attribute, value := range productDetails {
-					//productSheet.Update(int(cell.Row), getAttributeColumn(cell.Value, attribute), value)
-					fmt.Println("ATTRIBUTE AND VALUE: ", attribute, value)
+				return
+			}
+
+			//TODO catch errors with host names and DON'T PARSE
+			productDetails, errs := productParser.ParseProductPage(response)
+			for _, err := range errs {
+				s.scraperEventChan <- ScraperEvent{
+					Level:   ScraperError,
+					Message: err.Error(),
+					Scraper: s.Name,
+					Cell:    cell,
 				}
+			}
+			for attribute, value := range productDetails {
+				//productSheet.Update(int(cell.Row), getAttributeColumn(cell.Value, attribute), value)
+				fmt.Println("ATTRIBUTE AND VALUE: ", attribute, value)
 			}
 		}(urlCell, s)
 	}
@@ -202,9 +207,19 @@ func (s *WebScraper) fetchUrl(url string) (io.ReadCloser, error) {
 	req.Header.Set("User-Agent", userAgent)
 	resp, err := s.httpClient.Do(req)
 
-	if err != nil || resp.StatusCode != 200 {
-		return nil, err
+	if err != nil || resp.StatusCode != 200 || resp.Body == nil {
+		return nil, fmt.Errorf("GET failed for %s: %s %v", url, resp.Status, err)
 	}
 
 	return resp.Body, nil
+}
+
+func sliceContains(s []int, n int) bool {
+	for _, v := range s {
+		if v == n {
+			return true
+		}
+	}
+
+	return false
 }

@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -23,18 +24,19 @@ type ProductParser struct {
 }
 
 func NewProductParser(host string) (iParser, error) {
-	switch host {
-	case "www.dacardworld.com":
+	//Urls will sometimes be input without 'www.', remove to keep output consistent and absolve reasonable human error
+	switch strings.ReplaceAll(host, "www.", "") {
+	case "dacardworld.com":
 		return DAParser{}, nil
-	case "www.steelcitycollectibles.com":
+	case "steelcitycollectibles.com":
 		return SCParser{}, nil
-	case "www.blowoutcards.com":
+	case "blowoutcards.com":
 		return BCParser{}, nil
-	case "www.tcgplayer.com":
+	case "tcgplayer.com":
 		return TCGParser{}, nil
-	case "www.trollandtoad.com":
+	case "trollandtoad.com":
 		return TNTParser{}, nil
-	case "www.toywiz.com":
+	case "toywiz.com":
 		return TWParser{}, nil
 	default:
 		return nil, fmt.Errorf("unrecognized host: %v", host)

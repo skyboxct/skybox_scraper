@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Sports",
+    "enabled": true,
+    "scope": [
+      "https://spreadsheets.google.com/feeds",
+      "https://www.googleapis.com/auth/drive"
+    ],
+    "credentials_file_path": "../sportscreds.json",
+    "spreadsheet_id": "1_KRrcUKx42H9Ybq6hFguCsnFyDeQlk9-iI3fe1Pi2lU",
+    "product_sheet_name": "Sports Website Scraper",
+    "product_attribute_map": {
+      "dacardworld.com": 1,
+      "tcgplayer.com": 2
+    }
+  },
+  {
+    "name": "TCG",
+    "enabled": false,
+    "scope": [
+      "https://spreadsheets.google.com/feeds",
+      "https://www.googleapis.com/auth/drive"
+    ],
+    "credentials_file_path": "../tcgcreds.json",
+    "spreadsheet_id": "1k4fWKBXWr74A-5s8pQ6PW8ZhcoGe9nogQjjn1syuYyo",
+    "product_sheet_name": "TCG Website Scraper",
+    "product_attribute_map": null
+  }
+]
+
