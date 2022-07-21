@@ -18,17 +18,17 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	attributes := map[string]string{}
 	doc, err := goquery.NewDocumentFromReader(page)
 	if err != nil {
-		fmt.Printf("Whoopsie in DA parse: %v\n", err)
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
+	//Title
 	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1", &errs)
 
-	//Get Price: check for sale item and add non-sale price
-	price := strings.ReplaceAll(doc.Find("price discount large").Text(), "$", "")
+	//Price: check for sale item and add non-sale price
+	price := strings.ReplaceAll(doc.Find("span.large").Text(), "$", "")
 	if len(price) == 0 {
 		//product not on sale, use normal price field
-		price = doc.Find("price large").Text()
+		price = strings.ReplaceAll(doc.Find("strong.large").Text(), "$", "")
 	}
 	if len(price) == 0 {
 		attributes["stock text"] = "Out of Stock"
@@ -37,18 +37,18 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	}
 	attributes["price"] = price
 
-	//Get Price: check for sale item and add non-sale price
-	description := doc.Find("eight columns").Text()
-	if len(description) == 0 {
-		//product not on sale, use normal price field
-		price = doc.Find("moredetailsTab").Text()
-	}
-	if len(description) == 0 {
-		errs = append(errs, fmt.Errorf("description not found in html"))
-	}
-	attributes["description"] = description
+	//Description
+	attributes["description"] = getAttributeFromHtmlBasic(doc, "#moredetailsTab > div:nth-child(2) > div:nth-child(1)", &errs)
 
-	//todo: pic
-	//todo: upc
+	//Pic
+	var exists bool
+	attributes["pic"], exists = doc.Find(".product-image > div:nth-child(1) > a:nth-child(1) > img:nth-child(1)").Attr("src")
+	if !exists {
+		errs = append(errs, fmt.Errorf("pic not found in html"))
+	}
+
+	//UPC
+	attributes["UPC"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs), "UPC/Barcode: 8", "")
+
 	return attributes, nil
 }

@@ -16,7 +16,6 @@ const (
 )
 
 func main() {
-	//Todo: Create config file to register scrapers
 	var registeredScrapers []scrapers.WebScraper
 	var rowsToInclude []int
 	eventChan := make(chan scrapers.ScraperEvent)
@@ -39,6 +38,7 @@ func main() {
 
 	for _, scraperConfig := range scraperConfigs {
 		if scraperConfig.Enabled {
+			scraperConfig.ScraperEventChan = eventChan
 			scraper, err := scrapers.NewScraper(scraperConfig)
 			if err != nil {
 				fmt.Printf("Error: Failed to initialize %s scraper: %v\n", scraperConfig.Name, err)
@@ -75,7 +75,7 @@ func main() {
 
 	//TODO: Run scrapers concurrently?
 	for _, scraper := range registeredScrapers {
-		fmt.Printf("Starting %s scraper\n", scraper.Name)
+		fmt.Printf("Starting %s Scraper\n", scraper.Name)
 		err := scraper.ScrapeProducts(rowsToInclude)
 		if err != nil {
 			fmt.Printf("Error in %s Scraper: %v\n", scraper.Name, err)

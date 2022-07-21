@@ -18,17 +18,22 @@ func (parser TNTParser) ParseProductPage(page io.ReadCloser) (map[string]string,
 	attributes := map[string]string{}
 	doc, err := goquery.NewDocumentFromReader(page)
 	if err != nil {
-		fmt.Printf("Whoopsie in TNT parse: %v\n", err)
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
-	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1", &errs)
-	attributes["price"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "d-flex flex-column", &errs), "$", "")
+	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1.font-weight-bold", &errs)
+	attributes["price"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".d-lg-block > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)", &errs), "$", "")
 	if attributes["price"] == "" {
 		attributes["stock text"] = "Out of Stock"
 	} else {
 		attributes["stock text"] = "In Stock"
 	}
-	//todo: pic
+
+	var exists bool
+	attributes["pic"], exists = doc.Find("img.mw-100").Attr("src")
+	if !exists {
+		errs = append(errs, fmt.Errorf("pic not found in html"))
+	}
+
 	return attributes, errs
 }

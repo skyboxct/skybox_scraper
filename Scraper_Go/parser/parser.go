@@ -23,6 +23,7 @@ type ProductParser struct {
 	ProductFieldColumns map[string]int
 }
 
+// Todo: sale prices for all parsers
 func NewProductParser(host string) (iParser, error) {
 	//Urls will sometimes be input without 'www.', remove to keep output consistent and absolve reasonable human error
 	switch strings.ReplaceAll(host, "www.", "") {
@@ -45,7 +46,6 @@ func NewProductParser(host string) (iParser, error) {
 
 func getAttributeFromHtmlBasic(doc *goquery.Document, selector string, errorSlice *[]error) string {
 	result := doc.Find(selector).Text()
-	fmt.Println(result)
 	if len(result) == 0 {
 		*errorSlice = append(*errorSlice, fmt.Errorf("%s not found in html", selector))
 		return ""

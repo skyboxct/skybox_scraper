@@ -20,10 +20,7 @@ import (
 
 // Custom user agent.
 const (
-	userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) " +
-		"AppleWebKit/537.36 (KHTML, like Gecko) " +
-		"Chrome/53.0.2785.143 " +
-		"Safari/537.36"
+	userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6)"
 )
 
 const (
@@ -103,6 +100,7 @@ func getSheetsClient(config *jwt.Config) (*http.Client, error) {
 }
 
 func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
+	// Todo: split into functions
 	if len(rowsToInclude) > 0 {
 		fmt.Println("Row override enabled!")
 	}
@@ -142,7 +140,7 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 	var wg sync.WaitGroup
 	wg.Add(len(urlCells))
 	for _, urlCell := range urlCells {
-		go func(cell spreadsheet.Cell, s *WebScraper) {
+		func(cell spreadsheet.Cell, s *WebScraper) {
 			fmt.Printf("CELL: %v\n", cell)
 			defer wg.Done()
 
@@ -179,7 +177,6 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 				return
 			}
 
-			//TODO catch errors with host names and DON'T PARSE
 			productDetails, errs := productParser.ParseProductPage(response)
 			for _, err := range errs {
 				s.scraperEventChan <- ScraperEvent{
@@ -189,10 +186,13 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 					Cell:    cell,
 				}
 			}
+
 			for attribute, value := range productDetails {
+				// Todo: update sheet and push
 				//productSheet.Update(int(cell.Row), getAttributeColumn(cell.Value, attribute), value)
-				fmt.Println("ATTRIBUTE AND VALUE: ", attribute, value)
+				fmt.Printf("%s | %s\n", attribute, value)
 			}
+			fmt.Println()
 		}(urlCell, s)
 	}
 	wg.Wait()

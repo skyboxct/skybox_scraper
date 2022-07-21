@@ -22,13 +22,18 @@ func (parser TCGParser) ParseProductPage(page io.ReadCloser) (map[string]string,
 	}
 
 	attributes["title"] = getAttributeFromHtmlBasic(doc, ".product-details__name", &errs)
+	attributes["description"] = getAttributeFromHtmlBasic(doc, ".product__item-details__description", &errs)
 	attributes["price"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".spotlight__price", &errs), "$", "")
 	if attributes["price"] == "" {
 		attributes["stock text"] = "Out of Stock"
 	} else {
 		attributes["stock text"] = "In Stock"
 	}
-	attributes["description"] = getAttributeFromHtmlBasic(doc, ".pd-description__description", &errs)
-	//todo: pic
+
+	var exists bool
+	attributes["pic"], exists = doc.Find(".progressive-image-main").Attr("src")
+	if !exists {
+		errs = append(errs, fmt.Errorf("pic not found in html"))
+	}
 	return attributes, errs
 }

@@ -3,6 +3,9 @@ package parser
 import (
 	"fmt"
 	"io"
+	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type BCParser struct {
@@ -10,5 +13,23 @@ type BCParser struct {
 }
 
 func (parser BCParser) ParseProductPage(page io.ReadCloser) (map[string]string, []error) {
-	return nil, []error{fmt.Errorf("Not Implemented!")}
+	// Collect non-fatal errors into a slice to be fed into event listener
+	var errs []error
+	attributes := map[string]string{}
+	doc, err := goquery.NewDocumentFromReader(page)
+	if err != nil {
+		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
+	}
+
+	attributes["title"] = getAttributeFromHtmlBasic(doc, "div.product-name > h1:nth-child(1)", &errs)
+	attributes["price"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "#product-price-19269 > span:nth-child(1)", &errs), "$", "")
+	attributes["stock text"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".availability", &errs), "Availability: ", "")
+
+	var exists bool
+	attributes["pic"], exists = doc.Find("#zoom1").Attr("src")
+	if !exists {
+		errs = append(errs, fmt.Errorf("pic not found in html"))
+	}
+
+	return attributes, errs
 }
