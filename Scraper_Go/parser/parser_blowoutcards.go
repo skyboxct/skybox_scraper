@@ -25,11 +25,5 @@ func (parser BCParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	attributes["price"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "#product-price-19269 > span:nth-child(1)", &errs), "$", "")
 	attributes["stock text"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".availability", &errs), "Availability: ", "")
 
-	var exists bool
-	attributes["pic"], exists = doc.Find("#zoom1").Attr("src")
-	if !exists {
-		errs = append(errs, fmt.Errorf("pic not found in html"))
-	}
-
 	return attributes, errs
 }

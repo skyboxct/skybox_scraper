@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -20,13 +19,13 @@ type iParser interface {
 }
 
 type ProductParser struct {
-	ProductFieldColumns map[string]int
+	ProductFieldColumns map[string]string
 }
 
 // Todo: sale prices for all parsers
 func NewProductParser(host string) (iParser, error) {
 	//Urls will sometimes be input without 'www.', remove to keep output consistent and absolve reasonable human error
-	switch strings.ReplaceAll(host, "www.", "") {
+	switch host {
 	case "dacardworld.com":
 		return DAParser{}, nil
 	case "steelcitycollectibles.com":

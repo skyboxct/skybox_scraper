@@ -48,7 +48,7 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	}
 
 	//UPC
-	attributes["UPC"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs), "UPC/Barcode: 8", "")
+	attributes["upc"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs), "UPC/Barcode: 8", "")
 
 	return attributes, nil
 }

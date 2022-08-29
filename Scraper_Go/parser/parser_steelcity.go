@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -15,6 +16,7 @@ type SCParser struct {
 func (parser SCParser) ParseProductPage(page io.ReadCloser) (map[string]string, []error) {
 	var errs []error
 	attributes := map[string]string{}
+
 	doc, err := goquery.NewDocumentFromReader(page)
 	if err != nil {
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
@@ -30,13 +32,12 @@ func (parser SCParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		attributes["price"] = getAttributeFromHtmlBasic(doc, ".p-price > span:nth-child(1)", &errs)
 	}
 
-	var exists bool
-	//str, _ := doc.Html()
-	//fmt.Println(str)
-	attributes["pic"], exists = doc.Find(".lum-img").Attr("src")
-	if !exists {
-		errs = append(errs, fmt.Errorf("pic not found in html"))
+	picHtml, err := doc.Find(".seven").Html()
+	if err != nil {
+		errs = append(errs, fmt.Errorf("error getting html for pic: %v", err))
 	}
+	r := regexp.MustCompile("https://www.steelcitycollectibles.com/storage/img/uploads/products/full/.*jpg")
+	attributes["pic"] = r.FindString(picHtml)
 
 	return attributes, errs
 }

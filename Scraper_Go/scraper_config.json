@@ -1,7 +1,7 @@
 [
   {
     "name": "Sports",
-    "enabled": true,
+    "enabled": false,
     "scope": [
       "https://spreadsheets.google.com/feeds",
       "https://www.googleapis.com/auth/drive"
@@ -10,13 +10,31 @@
     "spreadsheet_id": "1_KRrcUKx42H9Ybq6hFguCsnFyDeQlk9-iI3fe1Pi2lU",
     "product_sheet_name": "Sports Website Scraper",
     "product_attribute_map": {
-      "dacardworld.com": 1,
-      "tcgplayer.com": 2
+      "dacardworld.com": {
+        "title": "A",
+        "price": "B",
+        "description": "C",
+        "pic": "D",
+        "upc": "E",
+        "stock text": "F"
+      },
+      "steelcitycollectibles.com": {
+        "title": "G",
+        "price": "H",
+        "pic": "I",
+        "stock text": "J"
+      },
+      "blowoutcards.com": {
+        "title": "K",
+        "price": "L",
+        "pic": "M",
+        "stock text": "N"
+      }
     }
   },
   {
     "name": "TCG",
-    "enabled": false,
+    "enabled": true,
     "scope": [
       "https://spreadsheets.google.com/feeds",
       "https://www.googleapis.com/auth/drive"
@@ -24,7 +42,41 @@
     "credentials_file_path": "../tcgcreds.json",
     "spreadsheet_id": "1k4fWKBXWr74A-5s8pQ6PW8ZhcoGe9nogQjjn1syuYyo",
     "product_sheet_name": "TCG Website Scraper",
-    "product_attribute_map": null
+    "product_attribute_map": {
+      "dacardworld.com": {
+        "title": "A",
+        "price": "B",
+        "description": "C",
+        "pic": "D",
+        "upc": "E",
+        "stock text": "F"
+      },
+      "tcgplayer.com": {
+        "title": "G",
+        "price": "H",
+        "description": "I",
+        "pic": "J",
+        "stock text": "K"
+      },
+      "trollandtoad.com": {
+        "title": "L",
+        "price": "M",
+        "pic": "N",
+        "stock text": "O"
+      },
+      "collectorstore.com": {
+        "title": "P",
+        "price": "Q",
+        "pic": "R",
+        "stock text": "S"
+      },
+      "toywiz.com": {
+        "title": "T",
+        "price": "U",
+        "pic": "V",
+        "stock text": "W"
+      }
+    }
   }
 ]
 

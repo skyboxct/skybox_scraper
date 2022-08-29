@@ -38,23 +38,24 @@ const (
 )
 
 type WebScraper struct {
-	Name             string
-	sheetsSvc        *spreadsheet.Service
-	spreadsheetID    string
-	productSheetName string
-	numWorkers       int
-	httpClient       http.Client
-	scraperEventChan chan ScraperEvent
+	Name                        string
+	sheetsSvc                   *spreadsheet.Service
+	spreadsheetID               string
+	productSheetName            string
+	numWorkers                  int
+	httpClient                  http.Client
+	scraperEventChan            chan ScraperEvent
+	productAttributeLocationMap map[string]map[string]string
 }
 
 type ScraperConfig struct {
-	Name                string         `json:"name"`
-	Scope               []string       `json:"scope"`
-	CredentialsFilePath string         `json:"credentials_file_path"`
-	SpreadsheetID       string         `json:"spreadsheet_id"`
-	ProductSheetName    string         `json:"product_sheet_name"`
-	ProductAttributeMap map[string]int `json:"product_attribute_map"`
-	Enabled             bool           `json:"enabled"`
+	Name                string                       `json:"name"`
+	Scope               []string                     `json:"scope"`
+	CredentialsFilePath string                       `json:"credentials_file_path"`
+	SpreadsheetID       string                       `json:"spreadsheet_id"`
+	ProductSheetName    string                       `json:"product_sheet_name"`
+	ProductAttributeMap map[string]map[string]string `json:"product_attribute_map"`
+	Enabled             bool                         `json:"enabled"`
 
 	ScraperEventChan chan ScraperEvent `json:"-"`
 }
@@ -84,15 +85,25 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
 
 	srv := spreadsheet.NewServiceWithClient(client)
 
-	return WebScraper{
-		Name:             scraperConfig.Name,
-		sheetsSvc:        srv,
-		spreadsheetID:    scraperConfig.SpreadsheetID,
-		productSheetName: scraperConfig.ProductSheetName,
-		numWorkers:       maxWorkers,
-		httpClient:       http.Client{Timeout: httpTimeout},
-		scraperEventChan: scraperConfig.ScraperEventChan,
-	}, nil
+	scraper := WebScraper{
+		Name:                        scraperConfig.Name,
+		sheetsSvc:                   srv,
+		spreadsheetID:               scraperConfig.SpreadsheetID,
+		productSheetName:            scraperConfig.ProductSheetName,
+		numWorkers:                  maxWorkers,
+		httpClient:                  http.Client{Timeout: httpTimeout},
+		scraperEventChan:            scraperConfig.ScraperEventChan,
+		productAttributeLocationMap: map[string]map[string]string{},
+	}
+
+	for hostKey, mapVal := range scraperConfig.ProductAttributeMap {
+		scraper.productAttributeLocationMap[hostKey] = map[string]string{}
+		for attKey, column := range mapVal {
+			scraper.productAttributeLocationMap[hostKey][attKey] = column
+		}
+	}
+
+	return scraper, nil
 }
 
 func getSheetsClient(config *jwt.Config) (*http.Client, error) {
@@ -155,6 +166,16 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 				return
 			}
 
+			productHost := strings.ReplaceAll(url.Host, "www.", "")
+			if _, ok := s.productAttributeLocationMap[productHost]; !ok {
+				s.scraperEventChan <- ScraperEvent{
+					Level:   ScraperError,
+					Message: fmt.Sprintf("No sheet configuration available for %s, skipping parse", productHost),
+					Scraper: s.Name,
+					Cell:    cell,
+				}
+			}
+
 			response, err := s.fetchUrl(url.String())
 			if err != nil {
 				s.scraperEventChan <- ScraperEvent{
@@ -166,7 +187,7 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 				return
 			}
 
-			productParser, err := parser.NewProductParser(url.Host)
+			productParser, err := parser.NewProductParser(productHost)
 			if err != nil {
 				s.scraperEventChan <- ScraperEvent{
 					Level:   ScraperError,
@@ -188,12 +209,27 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 			}
 
 			for attribute, value := range productDetails {
-				// Todo: update sheet and push
-				//productSheet.Update(int(cell.Row), getAttributeColumn(cell.Value, attribute), value)
-				fmt.Printf("%s | %s\n", attribute, value)
+				if column, ok := s.productAttributeLocationMap[productHost][attribute]; ok {
+					productSheet.Update(int(cell.Row), columnNameToInt(column), value)
+				} else {
+					s.scraperEventChan <- ScraperEvent{
+						Level:   ScraperError,
+						Message: fmt.Sprintf("No column value present for host: %s, attribute: %s", productHost, attribute),
+						Scraper: s.Name,
+						Cell:    cell,
+					}
+				}
 			}
 			fmt.Println()
 		}(urlCell, s)
+	}
+	err = productSheet.Synchronize()
+	if err != nil {
+		s.scraperEventChan <- ScraperEvent{
+			Level:   ScraperError,
+			Message: err.Error(),
+			Scraper: s.Name,
+		}
 	}
 	wg.Wait()
 
@@ -207,11 +243,26 @@ func (s *WebScraper) fetchUrl(url string) (io.ReadCloser, error) {
 	req.Header.Set("User-Agent", userAgent)
 	resp, err := s.httpClient.Do(req)
 
-	if err != nil || resp.StatusCode != 200 || resp.Body == nil {
+	if err != nil || resp == nil {
+		return nil, fmt.Errorf("GET failed for %s: %v", url, err)
+	}
+
+	if resp.StatusCode != 200 || resp.Body == nil {
 		return nil, fmt.Errorf("GET failed for %s: %s %v", url, resp.Status, err)
 	}
 
 	return resp.Body, nil
+}
+
+func columnNameToInt(str string) int {
+	var result uint8
+	upperStr := strings.ToUpper(str)
+	for i := range upperStr {
+		result *= 26
+		result += upperStr[i] - 'A'
+	}
+
+	return int(result)
 }
 
 func sliceContains(s []int, n int) bool {

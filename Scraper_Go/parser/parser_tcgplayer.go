@@ -13,6 +13,9 @@ type TCGParser struct {
 }
 
 func (parser TCGParser) ParseProductPage(page io.ReadCloser) (map[string]string, []error) {
+	//Todo: Rewrite to match new TCG page format
+	return nil, []error{fmt.Errorf("TCG PLAYER CURRENTLY UNAVAILABLE")}
+
 	// Collect non-fatal errors into a slice to be fed into event listener
 	var errs []error
 	attributes := map[string]string{}
