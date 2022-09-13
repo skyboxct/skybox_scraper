@@ -152,7 +152,7 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 	wg.Add(len(urlCells))
 	for _, urlCell := range urlCells {
 		func(cell spreadsheet.Cell, s *WebScraper) {
-			fmt.Printf("CELL: %v\n", cell)
+			//fmt.Printf("CELL: %v\n", cell)
 			defer wg.Done()
 
 			url, err := netUrl.Parse(cell.Value)
@@ -208,7 +208,10 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 				}
 			}
 
+			fmt.Printf("Processing URL: %s\n", url.String())
 			for attribute, value := range productDetails {
+				fmt.Printf("%s: %s\n", attribute, value)
+
 				if column, ok := s.productAttributeLocationMap[productHost][attribute]; ok {
 					productSheet.Update(int(cell.Row), columnNameToInt(column), value)
 				} else {

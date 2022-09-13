@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -47,8 +48,13 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		errs = append(errs, fmt.Errorf("pic not found in html"))
 	}
 
-	//UPC
-	attributes["upc"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs), "UPC/Barcode: 8", "")
-
+	//Product Details
+	attributes["upc"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs), "UPC/Barcode: ", "")
+	productDetails := getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1)", &errs)
+	rx := regexp.MustCompile(`(?s)` + regexp.QuoteMeta("UPC/Barcode: ") + `(.*?)` + regexp.QuoteMeta("\n"))
+	matches := rx.FindAllStringSubmatch(productDetails, -1)
+	if len(matches) > 0 {
+		attributes["upc"] = matches[0][1]
+	}
 	return attributes, nil
 }
