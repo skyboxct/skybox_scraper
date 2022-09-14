@@ -210,7 +210,7 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 
 			fmt.Printf("Processing URL: %s\n", url.String())
 			for attribute, value := range productDetails {
-				fmt.Printf("%s: %s\n", attribute, value)
+				//fmt.Printf("%s: %s\n", attribute, value)
 
 				if column, ok := s.productAttributeLocationMap[productHost][attribute]; ok {
 					productSheet.Update(int(cell.Row), columnNameToInt(column), value)
