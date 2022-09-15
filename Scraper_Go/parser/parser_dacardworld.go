@@ -39,7 +39,9 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	attributes["price"] = price
 
 	//Description
-	attributes["description"] = getAttributeFromHtmlBasic(doc, "#moredetailsTab > div:nth-child(2) > div:nth-child(1)", &errs)
+	moreDetails := strings.TrimLeft(getAttributeFromHtmlBasic(doc, "#moredetailsTab", &errs), "\n")
+	titleLess := strings.TrimLeft(moreDetails, attributes["title"])
+	attributes["description"] = strings.TrimLeft(titleLess, "\n")
 
 	//Pic
 	var exists bool

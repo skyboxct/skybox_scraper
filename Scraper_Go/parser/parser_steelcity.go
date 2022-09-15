@@ -29,6 +29,7 @@ func (parser SCParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		attributes["stock text"] = "Out of Stock"
 	} else {
 		attributes["stock text"] = "In Stock"
+		//Todo: steelCity sale price
 		attributes["price"] = getAttributeFromHtmlBasic(doc, ".p-price > span:nth-child(1)", &errs)
 	}
 
