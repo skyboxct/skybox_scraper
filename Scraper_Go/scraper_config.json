@@ -23,17 +23,12 @@
         "price": "H",
         "pic": "I",
         "stock text": "J"
-      },
-      "blowoutcards.com": {
-        "title": "K",
-        "price": "L",
-        "stock text": "N"
       }
     }
   },
   {
     "name": "TCG",
-    "enabled": false,
+    "enabled": true,
     "scope": [
       "https://spreadsheets.google.com/feeds",
       "https://www.googleapis.com/auth/drive"
@@ -49,13 +44,6 @@
         "pic": "D",
         "upc": "E",
         "stock text": "F"
-      },
-      "tcgplayer.com": {
-        "title": "G",
-        "price": "H",
-        "description": "I",
-        "pic": "J",
-        "stock text": "K"
       },
       "trollandtoad.com": {
         "title": "L",

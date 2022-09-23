@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -38,6 +39,8 @@ func NewProductParser(host string) (iParser, error) {
 		return TNTParser{}, nil
 	case "toywiz.com":
 		return TWParser{}, nil
+	case "collectorstore.com":
+		return CSParser{}, nil
 	default:
 		return nil, fmt.Errorf("unrecognized host: %v", host)
 	}
@@ -50,4 +53,9 @@ func getAttributeFromHtmlBasic(doc *goquery.Document, selector string, errorSlic
 		return ""
 	}
 	return result
+}
+
+// Removes '$' and ',' from prices to format as a number in sheets
+func stripPrice(priceString string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(priceString, "$", ""), ",", "")
 }

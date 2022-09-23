@@ -28,8 +28,13 @@ func (parser TWParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		//product not on sale, use normal price field
 		price = strings.ReplaceAll(doc.Find(".pvPrice").Text(), "$", "")
 	}
-	attributes["price"] = price
+	attributes["price"] = stripPrice(price)
 	attributes["stock text"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".pvDetails > div:nth-child(1) > span:nth-child(3)", &errs), "!", "")
+	if attributes["price"] == "" {
+		attributes["stock text"] = "Out of Stock"
+	} else {
+		attributes["stock text"] = "In Stock"
+	}
 
 	var exists bool
 	attributes["pic"], exists = doc.Find("#productThumb").Attr("src")

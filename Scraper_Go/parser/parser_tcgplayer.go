@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -26,7 +25,7 @@ func (parser TCGParser) ParseProductPage(page io.ReadCloser) (map[string]string,
 
 	attributes["title"] = getAttributeFromHtmlBasic(doc, ".product-details__name", &errs)
 	attributes["description"] = getAttributeFromHtmlBasic(doc, ".product__item-details__description", &errs)
-	attributes["price"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".spotlight__price", &errs), "$", "")
+	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, ".spotlight__price", &errs))
 	if attributes["price"] == "" {
 		attributes["stock text"] = "Out of Stock"
 	} else {

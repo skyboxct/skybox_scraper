@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -22,7 +21,7 @@ func (parser TNTParser) ParseProductPage(page io.ReadCloser) (map[string]string,
 	}
 
 	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1.font-weight-bold", &errs)
-	attributes["price"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".d-lg-block > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)", &errs), "$", "")
+	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, ".d-lg-block > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)", &errs))
 	if attributes["price"] == "" {
 		attributes["stock text"] = "Out of Stock"
 	} else {

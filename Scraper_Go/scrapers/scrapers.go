@@ -141,7 +141,14 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 		if strings.Contains(column[0].Value, "url") {
 			for _, cell := range column[1:] {
 				// Cell has a url and is not excluded by provided arguments
-				if len(cell.Value) > 0 && (len(rowsToInclude) == 0 || sliceContains(rowsToInclude, int(cell.Row))) {
+				hostConfigured := false
+				url, err := netUrl.Parse(cell.Value)
+				if err == nil {
+					productHost := strings.ReplaceAll(url.Host, "www.", "")
+					_, hostConfigured = s.productAttributeLocationMap[productHost]
+				}
+
+				if hostConfigured && (len(rowsToInclude) == 0 || sliceContains(rowsToInclude, int(cell.Row))) {
 					urlCells = append(urlCells, cell)
 				}
 			}

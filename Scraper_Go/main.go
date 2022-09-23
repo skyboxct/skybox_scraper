@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"scraper/scrapers"
 )
@@ -16,6 +18,7 @@ const (
 )
 
 func main() {
+	startTime := time.Now()
 	var registeredScrapers []scrapers.WebScraper
 	var rowsToInclude []int
 	eventChan := make(chan scrapers.ScraperEvent)
@@ -74,13 +77,21 @@ func main() {
 	}
 
 	//TODO: Run scrapers concurrently?
+	var wg sync.WaitGroup
 	for _, scraper := range registeredScrapers {
-		fmt.Printf("Starting %s Scraper\n", scraper.Name)
-		err := scraper.ScrapeProducts(rowsToInclude)
-		if err != nil {
-			fmt.Printf("Error in %s Scraper: %v\n", scraper.Name, err)
-		}
+		wg.Add(1)
+		go func(webScraper scrapers.WebScraper) {
+			fmt.Printf("Starting %s Scraper\n", webScraper.Name)
+			err := webScraper.ScrapeProducts(rowsToInclude)
+			if err != nil {
+				fmt.Printf("Error in %s Scraper: %v\n", webScraper.Name, err)
+			}
+			wg.Done()
+		}(scraper)
 	}
+	wg.Wait()
+	endTime := time.Since(startTime)
+	fmt.Printf("Scrapers Have Finished!\nExecution Time: %v", endTime)
 }
 
 func listenForEvents(eventChan chan scrapers.ScraperEvent) {
