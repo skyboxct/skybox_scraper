@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/widget"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,13 +27,11 @@ const (
 
 func main() {
 	startTime := time.Now()
-	var registeredScrapers []scrapers.WebScraper
-	var rowsToInclude []int
 	eventChan := make(chan scrapers.ScraperEvent)
 
 	go listenForEvents(eventChan)
 
-	var scraperConfigs []scrapers.ScraperConfig
+	var scraperConfigs []*scrapers.ScraperConfig
 	configFileContents, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
 		fmt.Printf("[ERROR] Failed to read config file %s: %v\nExiting...", configFilePath, err)
@@ -42,38 +44,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	var guiDisbled bool
+	guiDisabled := false
 	if len(os.Args) > 1 {
 		for _, arg := range os.Args {
 			if arg == "-nogui" {
-				guiDisbled = true
-			} else if row, err := strconv.Atoi(arg); err == nil {
-				rowsToInclude = append(rowsToInclude, row-1)
-			} else if strings.Contains(arg, "-") {
-				bounds := strings.Split(arg, "-")
-				if len(bounds) != 2 {
-					fmt.Printf("[ERROR] Invalid row range input: %s\n", arg)
-					os.Exit(1)
-				}
-
-				start, err := strconv.Atoi(bounds[0])
-				end, err := strconv.Atoi(bounds[1])
-				if err != nil || end < start {
-					fmt.Printf("[ERROR] Invalid row range input: %s\n", arg)
-					os.Exit(1)
-				}
-
-				for i := start - 1; i <= end-1; i++ {
-					rowsToInclude = append(rowsToInclude, i)
-				}
+				guiDisabled = true
 			}
 		}
 	}
 
+	if guiDisabled {
+		if len(os.Args) > 1 {
+			for _, scraperConfig := range scraperConfigs {
+				scraperConfig.RowsToInclude = strings.Join(os.Args, " ")
+			}
+		}
+		registeredScrapers := registerScrapersFromConfigs(scraperConfigs, &eventChan)
+		startScraper(registeredScrapers, startTime)
+	} else {
+		buildAndRunGui(scraperConfigs, startTime, &eventChan)
+	}
+}
+
+func registerScrapersFromConfigs(scraperConfigs []*scrapers.ScraperConfig, eventChan *chan scrapers.ScraperEvent) []scrapers.WebScraper {
+	var registeredScrapers []scrapers.WebScraper
 	for _, scraperConfig := range scraperConfigs {
 		if scraperConfig.Enabled {
-			scraperConfig.ScraperEventChan = eventChan
-			scraper, err := scrapers.NewScraper(scraperConfig, rowsToInclude)
+			scraperConfig.ScraperEventChan = *eventChan
+			scraper, err := scrapers.NewScraper(*scraperConfig)
 			if err != nil {
 				fmt.Printf("Error: Failed to initialize %s scraper: %v\n", scraperConfig.Name, err)
 			} else {
@@ -82,12 +80,42 @@ func main() {
 		}
 	}
 
+	return registeredScrapers
+}
+
+// TODO: Display all scrapers
+// TODO: Add Output
+func buildAndRunGui(scraperConfigs []*scrapers.ScraperConfig, startTime time.Time, eventChan *chan scrapers.ScraperEvent) {
+	myApp := app.New()
+	myWindow := myApp.NewWindow("Skybox Scraper")
+	vBoxes := []*fyne.Container{}
+
+	for _, scraperConfig := range scraperConfigs {
+		label := widget.NewLabel(scraperConfig.Name)
+		enabledBox := widget.NewCheckWithData("Enabled", binding.BindBool(&scraperConfig.Enabled))
+		rowOverrideInput := widget.NewEntryWithData(binding.BindString(&scraperConfig.RowsToInclude))
+		rowOverrideInput.SetPlaceHolder("Rows to include (leave empty for all) Ex \"1 2-5 20\"")
+		vBoxes = append(vBoxes, container.NewVBox(label, enabledBox, rowOverrideInput))
+	}
+
+	startButton := widget.NewButton("Start Scraper", func() {
+		fmt.Println(scraperConfigs[0].Enabled)
+		fmt.Println(&scraperConfigs)
+		registeredScrapers := registerScrapersFromConfigs(scraperConfigs, eventChan)
+		startScraper(registeredScrapers, startTime)
+	})
+
+	myWindow.SetContent(container.NewVBox(vBoxes[0], startButton))
+	myWindow.ShowAndRun()
+}
+
+func startScraper(registeredScrapers []scrapers.WebScraper, startTime time.Time) {
 	var wg sync.WaitGroup
 	for _, scraper := range registeredScrapers {
 		wg.Add(1)
 		go func(webScraper scrapers.WebScraper) {
 			fmt.Printf("Starting %s Scraper\n", webScraper.Name)
-			err := webScraper.ScrapeProducts(rowsToInclude)
+			err := webScraper.ScrapeProducts()
 			if err != nil {
 				fmt.Printf("Error in %s Scraper: %v\n", webScraper.Name, err)
 			}
@@ -95,6 +123,7 @@ func main() {
 		}(scraper)
 	}
 	wg.Wait()
+
 	endTime := time.Since(startTime)
 	fmt.Printf("Scrapers Have Finished!\nExecution Time: %v", endTime)
 }

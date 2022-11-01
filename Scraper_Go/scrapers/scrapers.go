@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	netUrl "net/url"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +59,7 @@ type ScraperConfig struct {
 	ProductSheetName    string                       `json:"product_sheet_name"`
 	ProductAttributeMap map[string]map[string]string `json:"product_attribute_map"`
 	Enabled             bool                         `json:"enabled"`
+	RowsToInclude       string                       `json:"rows_to_include""`
 
 	ScraperEventChan chan ScraperEvent `json:"-"`
 }
@@ -68,7 +71,7 @@ type ScraperEvent struct {
 	Cell    spreadsheet.Cell
 }
 
-func NewScraper(scraperConfig ScraperConfig, rowsToInclude []int) (WebScraper, error) {
+func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
 	b, err := ioutil.ReadFile(scraperConfig.CredentialsFilePath)
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to read client secret file: %v", err)
@@ -95,7 +98,7 @@ func NewScraper(scraperConfig ScraperConfig, rowsToInclude []int) (WebScraper, e
 		httpClient:                  http.Client{Timeout: httpTimeout},
 		scraperEventChan:            scraperConfig.ScraperEventChan,
 		productAttributeLocationMap: map[string]map[string]string{},
-		rowsToInclude:               rowsToInclude,
+		rowsToInclude:               parseRowOverride(scraperConfig.RowsToInclude),
 	}
 
 	fmt.Println("rows to include: ", scraper.rowsToInclude)
@@ -110,13 +113,40 @@ func NewScraper(scraperConfig ScraperConfig, rowsToInclude []int) (WebScraper, e
 	return scraper, nil
 }
 
+func parseRowOverride(input string) []int {
+	rowsToInclude := []int{}
+	for _, arg := range strings.Split(input, " ") {
+		if row, err := strconv.Atoi(arg); err == nil {
+			rowsToInclude = append(rowsToInclude, row-1)
+		} else if strings.Contains(arg, "-") {
+			bounds := strings.Split(arg, "-")
+			if len(bounds) != 2 {
+				fmt.Printf("[ERROR] Invalid row range input: %s\n", arg)
+				os.Exit(1)
+			}
+
+			start, err := strconv.Atoi(bounds[0])
+			end, err := strconv.Atoi(bounds[1])
+			if err != nil || end < start {
+				fmt.Printf("[ERROR] Invalid row range input: %s\n", arg)
+				os.Exit(1)
+			}
+
+			for i := start - 1; i <= end-1; i++ {
+				rowsToInclude = append(rowsToInclude, i)
+			}
+		}
+	}
+	return rowsToInclude
+}
+
 func getSheetsClient(config *jwt.Config) (*http.Client, error) {
 	return config.Client(context.Background()), nil
 }
 
-func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
+func (s *WebScraper) ScrapeProducts() error {
 	// Todo: split into functions
-	if len(rowsToInclude) > 0 {
+	if len(s.rowsToInclude) > 0 {
 		fmt.Println("Row override enabled!")
 	}
 
@@ -152,7 +182,7 @@ func (s *WebScraper) ScrapeProducts(rowsToInclude []int) error {
 					_, hostConfigured = s.productAttributeLocationMap[productHost]
 				}
 
-				if hostConfigured && (len(rowsToInclude) == 0 || sliceContains(rowsToInclude, int(cell.Row))) {
+				if hostConfigured && (len(s.rowsToInclude) == 0 || sliceContains(s.rowsToInclude, int(cell.Row))) {
 					urlCells = append(urlCells, cell)
 				}
 			}
