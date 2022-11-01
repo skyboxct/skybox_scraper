@@ -17,6 +17,10 @@ const (
 	configFilePath = "scraper_config.json"
 )
 
+// TODO: Terminal (simple gui) input for scraper/row config
+// TODO: Run nightly on server
+// TODO: Error report file
+
 func main() {
 	startTime := time.Now()
 	var registeredScrapers []scrapers.WebScraper
@@ -25,7 +29,6 @@ func main() {
 
 	go listenForEvents(eventChan)
 
-	// TODO: Make hosts configurable
 	var scraperConfigs []scrapers.ScraperConfig
 	configFileContents, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
@@ -39,21 +42,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	for _, scraperConfig := range scraperConfigs {
-		if scraperConfig.Enabled {
-			scraperConfig.ScraperEventChan = eventChan
-			scraper, err := scrapers.NewScraper(scraperConfig)
-			if err != nil {
-				fmt.Printf("Error: Failed to initialize %s scraper: %v\n", scraperConfig.Name, err)
-			} else {
-				registeredScrapers = append(registeredScrapers, scraper)
-			}
-		}
-	}
-
+	var guiDisbled bool
 	if len(os.Args) > 1 {
 		for _, arg := range os.Args {
-			if row, err := strconv.Atoi(arg); err == nil {
+			if arg == "-nogui" {
+				guiDisbled = true
+			} else if row, err := strconv.Atoi(arg); err == nil {
 				rowsToInclude = append(rowsToInclude, row-1)
 			} else if strings.Contains(arg, "-") {
 				bounds := strings.Split(arg, "-")
@@ -76,7 +70,18 @@ func main() {
 		}
 	}
 
-	//TODO: Run scrapers concurrently?
+	for _, scraperConfig := range scraperConfigs {
+		if scraperConfig.Enabled {
+			scraperConfig.ScraperEventChan = eventChan
+			scraper, err := scrapers.NewScraper(scraperConfig, rowsToInclude)
+			if err != nil {
+				fmt.Printf("Error: Failed to initialize %s scraper: %v\n", scraperConfig.Name, err)
+			} else {
+				registeredScrapers = append(registeredScrapers, scraper)
+			}
+		}
+	}
+
 	var wg sync.WaitGroup
 	for _, scraper := range registeredScrapers {
 		wg.Add(1)
@@ -95,7 +100,6 @@ func main() {
 }
 
 func listenForEvents(eventChan chan scrapers.ScraperEvent) {
-	//todo: collect error cells, retry mechanism
 	for {
 		select {
 		case event := <-eventChan:

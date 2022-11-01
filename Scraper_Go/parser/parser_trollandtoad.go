@@ -20,8 +20,8 @@ func (parser TNTParser) ParseProductPage(page io.ReadCloser) (map[string]string,
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
-	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1.font-weight-bold", &errs)
-	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, ".d-lg-block > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)", &errs))
+	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1.font-weight-bold", &errs, "title")
+	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, ".d-lg-block > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)", &errs, "price"))
 	if attributes["price"] == "" {
 		attributes["stock text"] = "Out of Stock"
 	} else {

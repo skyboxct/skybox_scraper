@@ -21,7 +21,7 @@ func (parser TWParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
-	attributes["title"] = getAttributeFromHtmlBasic(doc, "div.productTitle:nth-child(1) > h1:nth-child(1)", &errs)
+	attributes["title"] = getAttributeFromHtmlBasic(doc, "div.productTitle:nth-child(1) > h1:nth-child(1)", &errs, "title")
 	//Price: check for sale item and add non-sale price
 	price := strings.ReplaceAll(doc.Find(".pvPrice > span:nth-child(1)").Text(), "$", "")
 	if len(price) == 0 {
@@ -29,7 +29,7 @@ func (parser TWParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		price = strings.ReplaceAll(doc.Find(".pvPrice").Text(), "$", "")
 	}
 	attributes["price"] = stripPrice(price)
-	attributes["stock text"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".pvDetails > div:nth-child(1) > span:nth-child(3)", &errs), "!", "")
+	attributes["stock text"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".pvDetails > div:nth-child(1) > span:nth-child(3)", &errs, "stock text"), "!", "")
 	if attributes["price"] == "" {
 		attributes["stock text"] = "Out of Stock"
 	} else {

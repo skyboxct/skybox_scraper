@@ -23,7 +23,7 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	}
 
 	//Title
-	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1", &errs)
+	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1", &errs, "title")
 
 	//Price: check for sale item and add non-sale price
 	price := strings.ReplaceAll(doc.Find("span.large").Text(), "$", "")
@@ -39,7 +39,7 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	attributes["price"] = price
 
 	//Description
-	moreDetails := strings.TrimLeft(getAttributeFromHtmlBasic(doc, "#moredetailsTab", &errs), "\n")
+	moreDetails := strings.TrimLeft(getAttributeFromHtmlBasic(doc, "#moredetailsTab", &errs, "moredetailsTab"), "\n")
 	titleLess := strings.TrimLeft(moreDetails, attributes["title"])
 	attributes["description"] = strings.TrimLeft(titleLess, "\n")
 
@@ -51,8 +51,8 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	}
 
 	//Product Details
-	attributes["upc"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs), "UPC/Barcode: ", "")
-	productDetails := getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1)", &errs)
+	attributes["upc"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs, "upc"), "UPC/Barcode: ", "")
+	productDetails := getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1)", &errs, "productDetails")
 	rx := regexp.MustCompile(`(?s)` + regexp.QuoteMeta("UPC/Barcode: ") + `(.*?)` + regexp.QuoteMeta("\n"))
 	matches := rx.FindAllStringSubmatch(productDetails, -1)
 	if len(matches) > 0 {

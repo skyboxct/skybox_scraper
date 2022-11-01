@@ -8,7 +8,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-//Todo: Make mapping of product attributes and their corresponding cells
+// Todo: Make mapping of product attributes and their corresponding cells
 var productAttributeCellsSports map[string]string = map[string]string{
 	"dacardworld price": "B",
 }
@@ -46,10 +46,10 @@ func NewProductParser(host string) (iParser, error) {
 	}
 }
 
-func getAttributeFromHtmlBasic(doc *goquery.Document, selector string, errorSlice *[]error) string {
+func getAttributeFromHtmlBasic(doc *goquery.Document, selector string, errorSlice *[]error, attribute string) string {
 	result := doc.Find(selector).Text()
 	if len(result) == 0 {
-		*errorSlice = append(*errorSlice, fmt.Errorf("%s not found in html", selector))
+		*errorSlice = append(*errorSlice, fmt.Errorf("attribute '%s' (%s) not found in html", attribute, selector))
 		return ""
 	}
 	return result

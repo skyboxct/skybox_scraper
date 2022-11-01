@@ -21,9 +21,9 @@ func (parser BCParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
-	attributes["title"] = getAttributeFromHtmlBasic(doc, "div.product-name > h1:nth-child(1)", &errs)
-	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, "div.price-box:nth-child(2)", &errs))
-	attributes["stock text"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".availability", &errs), "Availability: ", "")
+	attributes["title"] = getAttributeFromHtmlBasic(doc, "div.product-name > h1:nth-child(1)", &errs, "title")
+	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, "div.price-box:nth-child(2)", &errs, "price"))
+	attributes["stock text"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, ".availability", &errs, "stock text"), "Availability: ", "")
 
 	return attributes, errs
 }

@@ -46,6 +46,7 @@ type WebScraper struct {
 	httpClient                  http.Client
 	scraperEventChan            chan ScraperEvent
 	productAttributeLocationMap map[string]map[string]string
+	rowsToInclude               []int
 }
 
 type ScraperConfig struct {
@@ -67,7 +68,7 @@ type ScraperEvent struct {
 	Cell    spreadsheet.Cell
 }
 
-func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
+func NewScraper(scraperConfig ScraperConfig, rowsToInclude []int) (WebScraper, error) {
 	b, err := ioutil.ReadFile(scraperConfig.CredentialsFilePath)
 	if err != nil {
 		return WebScraper{}, fmt.Errorf("unable to read client secret file: %v", err)
@@ -94,7 +95,10 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
 		httpClient:                  http.Client{Timeout: httpTimeout},
 		scraperEventChan:            scraperConfig.ScraperEventChan,
 		productAttributeLocationMap: map[string]map[string]string{},
+		rowsToInclude:               rowsToInclude,
 	}
+
+	fmt.Println("rows to include: ", scraper.rowsToInclude)
 
 	for hostKey, mapVal := range scraperConfig.ProductAttributeMap {
 		scraper.productAttributeLocationMap[hostKey] = map[string]string{}

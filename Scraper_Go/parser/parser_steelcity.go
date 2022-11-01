@@ -22,7 +22,7 @@ func (parser SCParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
-	attributes["title"] = getAttributeFromHtmlBasic(doc, ".five > h1:nth-child(1)", &errs)
+	attributes["title"] = getAttributeFromHtmlBasic(doc, ".five > h1:nth-child(1)", &errs, "title")
 
 	outOfStock := strings.Contains(strings.ToLower(doc.Find(".five > div:nth-child(3) > p:nth-child(4)").Text()), "out of stock")
 	if outOfStock {

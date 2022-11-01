@@ -23,9 +23,9 @@ func (parser TCGParser) ParseProductPage(page io.ReadCloser) (map[string]string,
 		return nil, []error{fmt.Errorf("could not create searchable document from html, %v", err)}
 	}
 
-	attributes["title"] = getAttributeFromHtmlBasic(doc, ".product-details__name", &errs)
-	attributes["description"] = getAttributeFromHtmlBasic(doc, ".product__item-details__description", &errs)
-	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, ".spotlight__price", &errs))
+	attributes["title"] = getAttributeFromHtmlBasic(doc, ".product-details__name", &errs, "title")
+	attributes["description"] = getAttributeFromHtmlBasic(doc, ".product__item-details__description", &errs, "description")
+	attributes["price"] = stripPrice(getAttributeFromHtmlBasic(doc, ".spotlight__price", &errs, "price"))
 	if attributes["price"] == "" {
 		attributes["stock text"] = "Out of Stock"
 	} else {
