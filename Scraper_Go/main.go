@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"io/ioutil"
 	"os"
@@ -21,7 +22,6 @@ const (
 	configFilePath = "scraper_config.json"
 )
 
-// TODO: Terminal (simple gui) input for scraper/row config
 // TODO: Run nightly on server
 // TODO: Error report file
 
@@ -83,20 +83,27 @@ func registerScrapersFromConfigs(scraperConfigs []*scrapers.ScraperConfig, event
 	return registeredScrapers
 }
 
-// TODO: Display all scrapers
 // TODO: Add Output
 func buildAndRunGui(scraperConfigs []*scrapers.ScraperConfig, startTime time.Time, eventChan *chan scrapers.ScraperEvent) {
 	myApp := app.New()
 	myWindow := myApp.NewWindow("Skybox Scraper")
+	myWindow.Resize(fyne.Size{
+		Width:  600,
+		Height: 100,
+	})
 	vBoxes := []*fyne.Container{}
 
 	for _, scraperConfig := range scraperConfigs {
 		label := widget.NewLabel(scraperConfig.Name)
 		enabledBox := widget.NewCheckWithData("Enabled", binding.BindBool(&scraperConfig.Enabled))
 		rowOverrideInput := widget.NewEntryWithData(binding.BindString(&scraperConfig.RowsToInclude))
-		rowOverrideInput.SetPlaceHolder("Rows to include (leave empty for all) Ex \"1 2-5 20\"")
+		rowOverrideInput.MultiLine = true
+		rowOverrideInput.SetPlaceHolder("Rows to include, space-separated\n(leave empty for all)\nEx \"1 2-5 20\"")
+		//vBoxes = append(vBoxes, *container.New(layout.NewVBoxLayout(), label, enabledBox, rowOverrideInput))
 		vBoxes = append(vBoxes, container.NewVBox(label, enabledBox, rowOverrideInput))
 	}
+
+	configBoxes := container.New(layout.NewGridLayout(len(vBoxes)), vBoxes[0], vBoxes[1])
 
 	startButton := widget.NewButton("Start Scraper", func() {
 		fmt.Println(scraperConfigs[0].Enabled)
@@ -105,7 +112,10 @@ func buildAndRunGui(scraperConfigs []*scrapers.ScraperConfig, startTime time.Tim
 		startScraper(registeredScrapers, startTime)
 	})
 
-	myWindow.SetContent(container.NewVBox(vBoxes[0], startButton))
+	//widget.NewLabelWithData(binding.BindString())
+	outputBox := container.New(layout.NewPaddedLayout())
+
+	myWindow.SetContent(container.New(layout.NewVBoxLayout(), configBoxes, startButton, outputBox))
 	myWindow.ShowAndRun()
 }
 

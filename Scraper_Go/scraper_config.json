@@ -9,7 +9,7 @@
     "credentials_file_path": "../sportscreds.json",
     "spreadsheet_id": "1_KRrcUKx42H9Ybq6hFguCsnFyDeQlk9-iI3fe1Pi2lU",
     "product_sheet_name": "New Scraper Worksheet",
-    "rows_to_include": "2 3-10",
+    "rows_to_include": "",
     "product_attribute_map": {
       "dacardworld.com": {
         "title": "A",
@@ -29,7 +29,7 @@
   },
   {
     "name": "TCG",
-    "enabled": false,
+    "enabled": true,
     "scope": [
       "https://spreadsheets.google.com/feeds",
       "https://www.googleapis.com/auth/drive"
