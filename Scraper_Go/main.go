@@ -47,18 +47,13 @@ func main() {
 	guiDisabled := false
 	if len(os.Args) > 1 {
 		for _, arg := range os.Args {
-			if arg == "-nogui" {
+			if strings.ToLower(arg) == "-nogui" {
 				guiDisabled = true
 			}
 		}
 	}
 
 	if guiDisabled {
-		if len(os.Args) > 1 {
-			for _, scraperConfig := range scraperConfigs {
-				scraperConfig.RowsToInclude = strings.Join(os.Args, " ")
-			}
-		}
 		registeredScrapers := registerScrapersFromConfigs(scraperConfigs, &eventChan)
 		startScraper(registeredScrapers, startTime)
 	} else {

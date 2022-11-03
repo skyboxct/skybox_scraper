@@ -101,8 +101,6 @@ func NewScraper(scraperConfig ScraperConfig) (WebScraper, error) {
 		rowsToInclude:               parseRowOverride(scraperConfig.RowsToInclude),
 	}
 
-	fmt.Println("rows to include: ", scraper.rowsToInclude)
-
 	for hostKey, mapVal := range scraperConfig.ProductAttributeMap {
 		scraper.productAttributeLocationMap[hostKey] = map[string]string{}
 		for attKey, column := range mapVal {
@@ -251,8 +249,6 @@ func (s *WebScraper) ScrapeProducts() error {
 
 			fmt.Printf("Processing URL: %s\n", url.String())
 			for attribute, value := range productDetails {
-				//fmt.Printf("%s: %s\n", attribute, value)
-
 				if column, ok := s.productAttributeLocationMap[productHost][attribute]; ok {
 					productSheet.Update(int(cell.Row), columnNameToInt(column), value)
 				} else {
