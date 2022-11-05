@@ -23,7 +23,7 @@ jobs:
 
     - name: Install Deps
       run: |
-        sudo apt-get install xorg-dev
+        sudo apt-get install -y gcc-mingw-w64 gcc-multilib xorg-dev
 
     - name: Build Linux
       run: |
@@ -35,7 +35,7 @@ jobs:
         export CGO_ENABLED=1
         cd Scraper_Go
         go clean -modcache
-        env GOOS=windows GOARCH=amd64 go build scraper
+        env GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -v scraper
 
     - name: Move Executables
       run: |
