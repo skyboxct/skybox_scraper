@@ -23,12 +23,17 @@ jobs:
 
     - name: Install Deps
       run: |
-        sudo apt-get install libx11-dev
+        sudo apt-get install xorg-dev
 
-    - name: Build
+    - name: Build Linux
       run: |
         cd Scraper_Go
         go build -v scraper
+
+    - name: Build Windows
+      run: |
+        cd Scraper_Go
+        env GOOS=windows GOARCH=amd64 go build scraper
 
     - uses: actions/upload-artifact@v2
       with:
