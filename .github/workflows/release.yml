@@ -35,7 +35,13 @@ jobs:
         cd Scraper_Go
         env GOOS=windows GOARCH=amd64 go build scraper
 
-    - uses: actions/upload-artifact@v2
+    - name: Move Executables
+      run: |
+        cp Scraper_Go/scraper executables
+        cp Scraper_Go/scraper.exe executables
+
+    - name: Release Executables
+      uses: actions/upload-artifact@v2
       with:
-        name: scraper
-        path: ./Scraper_Go
+        name: executables
+        path: .
