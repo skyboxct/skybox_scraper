@@ -32,7 +32,9 @@ jobs:
 
     - name: Build Windows
       run: |
+        export CGO_ENABLED=1
         cd Scraper_Go
+        go clean -modcache
         env GOOS=windows GOARCH=amd64 go build scraper
 
     - name: Move Executables
