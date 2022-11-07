@@ -49,8 +49,8 @@ jobs:
       with:
         draft: false
         prerelease: false
-        release_name: ${{ github.ref }}
-        tag_name: ${{ github.ref }}
+        release_name: ${{ github.run_id }}
+        tag_name: ${{ github.run_id }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
 
@@ -59,11 +59,11 @@ jobs:
       with:
         files: executables/scraper_linux
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        release-tag: ${{ github.ref }}
+        release-tag: ${{ github.run_id }}
 
     - name: upload windows executable
       uses: AButler/upload-release-assets@v2.0
       with:
         files: executables/scraper.exe
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        release-tag: ${{ github.ref }}
+        release-tag: ${{ github.run_id }}
