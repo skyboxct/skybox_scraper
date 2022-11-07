@@ -1,7 +1,7 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Go
+name: Release Scraper
 
 on:
   push:
@@ -39,11 +39,35 @@ jobs:
 
     - name: Move Executables
       run: |
-        cp Scraper_Go/scraper executables
+        cp Scraper_Go/scraper executables/scraper_linux
         cp Scraper_Go/scraper.exe executables
+        ls -a executables
 
-    - name: Release Executables
-      uses: actions/upload-artifact@v2
+    - name: Create Release
+      uses: actions/create-release@v1
+      id: create_release
       with:
-        name: executables
-        path: .
+        draft: false
+        prerelease: false
+        release_name: ${{ github.ref }}
+        tag_name: ${{ github.ref }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: upload linux executable
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: executables
+        asset_name: scraper_linux
+
+    - name: upload windows executable
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: executables
+        asset_name: scraper.exe
