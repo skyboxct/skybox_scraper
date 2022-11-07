@@ -67,3 +67,10 @@ jobs:
         files: executables/scraper.exe; Scraper_Go/scraper_config.json
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         release-tag: ${{ github.run_id }}
+
+    - name: upload config
+      uses: AButler/upload-release-assets@v2.0
+      with:
+        files: Scraper_Go/scraper_config.json
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: ${{ github.run_id }}
