@@ -55,19 +55,15 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
 
     - name: upload linux executable
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+      uses: AButler/upload-release-assets@v2.0
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: executables
-        asset_name: scraper_linux
+        files: executables/scraper_linux
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: ${{ github.ref }}
 
     - name: upload windows executable
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+      uses: AButler/upload-release-assets@v2.0
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: executables
-        asset_name: scraper.exe
+        files: executables/scraper.exe
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: ${{ github.ref }}
