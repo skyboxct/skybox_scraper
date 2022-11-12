@@ -134,3 +134,5 @@ dmypy.json
 
 # Server access keys
 *.pem
+Scraper_Go/*creds.json
+*creds.json
