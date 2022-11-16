@@ -143,7 +143,6 @@ func getSheetsClient(config *jwt.Config) (*http.Client, error) {
 }
 
 func (s *WebScraper) ScrapeProducts() error {
-	// Todo: split into functions
 	if len(s.rowsToInclude) > 0 {
 		fmt.Println("Row override enabled!")
 	}
@@ -167,6 +166,19 @@ func (s *WebScraper) ScrapeProducts() error {
 		}
 	}
 
+	fmt.Println("Fetched sheet data")
+
+	defer func(productSheet *spreadsheet.Sheet) {
+		err = productSheet.Synchronize()
+		if err != nil {
+			s.scraperEventChan <- ScraperEvent{
+				Level:   ScraperError,
+				Message: err.Error(),
+				Scraper: s.Name,
+			}
+		}
+	}(productSheet)
+
 	//Fetch all cells containing a product URL
 	var urlCells []spreadsheet.Cell
 	for _, column := range productSheet.Columns {
@@ -187,11 +199,12 @@ func (s *WebScraper) ScrapeProducts() error {
 		}
 	}
 
+	fmt.Println("Starting main loop")
+	
 	var wg sync.WaitGroup
 	wg.Add(len(urlCells))
 	for _, urlCell := range urlCells {
 		func(cell spreadsheet.Cell, s *WebScraper) {
-			//fmt.Printf("CELL: %v\n", cell)
 			defer wg.Done()
 
 			url, err := netUrl.Parse(cell.Value)
@@ -204,6 +217,7 @@ func (s *WebScraper) ScrapeProducts() error {
 				}
 				return
 			}
+			fmt.Printf("Processing URL: %s\n", url.String())
 
 			productHost := strings.ReplaceAll(url.Host, "www.", "")
 			if _, ok := s.productAttributeLocationMap[productHost]; !ok {
@@ -247,7 +261,6 @@ func (s *WebScraper) ScrapeProducts() error {
 				}
 			}
 
-			fmt.Printf("Processing URL: %s\n", url.String())
 			for attribute, value := range productDetails {
 				if column, ok := s.productAttributeLocationMap[productHost][attribute]; ok {
 					productSheet.Update(int(cell.Row), columnNameToInt(column), value)
@@ -262,14 +275,6 @@ func (s *WebScraper) ScrapeProducts() error {
 			}
 			fmt.Println()
 		}(urlCell, s)
-	}
-	err = productSheet.Synchronize()
-	if err != nil {
-		s.scraperEventChan <- ScraperEvent{
-			Level:   ScraperError,
-			Message: err.Error(),
-			Scraper: s.Name,
-		}
 	}
 	wg.Wait()
 

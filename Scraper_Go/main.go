@@ -29,6 +29,8 @@ func main() {
 	startTime := time.Now()
 	eventChan := make(chan scrapers.ScraperEvent)
 
+	//fmt.Println(generateRetryRowOverride([]int{1, 3, 5, 6, 7, 8, 11}))
+
 	go listenForEvents(eventChan)
 
 	var scraperConfigs []*scrapers.ScraperConfig
@@ -101,8 +103,6 @@ func buildAndRunGui(scraperConfigs []*scrapers.ScraperConfig, startTime time.Tim
 	configBoxes := container.New(layout.NewGridLayout(len(vBoxes)), vBoxes[0], vBoxes[1])
 
 	startButton := widget.NewButton("Start Scraper", func() {
-		fmt.Println(scraperConfigs[0].Enabled)
-		fmt.Println(&scraperConfigs)
 		registeredScrapers := registerScrapersFromConfigs(scraperConfigs, eventChan)
 		startScraper(registeredScrapers, startTime)
 	})
@@ -134,6 +134,7 @@ func startScraper(registeredScrapers []scrapers.WebScraper, startTime time.Time)
 }
 
 func listenForEvents(eventChan chan scrapers.ScraperEvent) {
+	errors := []scrapers.ScraperEvent{}
 	for {
 		select {
 		case event := <-eventChan:
@@ -143,6 +144,7 @@ func listenForEvents(eventChan chan scrapers.ScraperEvent) {
 			case scrapers.Warning:
 				fmt.Printf("[WARN] Scraper: %s ** Message: %s\n", event.Scraper, event.Message)
 			case scrapers.ScraperError:
+				errors = append(errors, event)
 				fmt.Printf("[ERROR] Scraper: %s ** Message: %s\n Cell impacted:%v\n", event.Scraper, event.Message, event.Cell)
 			case scrapers.FatalError:
 				fmt.Printf("[FATAL] Error in %s Scraper!! %s\n Cell Impacted: %v\n This is a fatal error, scraper will shut down", event.Scraper, event.Message, event.Cell)
@@ -150,4 +152,17 @@ func listenForEvents(eventChan chan scrapers.ScraperEvent) {
 			}
 		}
 	}
+}
+
+// fmt.Println(generateRetryRowOverride([]int{1, 3, 5, 6, 7, 8, 11}))
+func generateRetryRowOverride(rowNums []int) string {
+	final := fmt.Sprintf("%v", rowNums)
+	for index, row := range rowNums[1:] {
+		if row-rowNums[index-1] > 1 {
+			final = strings.Join([]string{final, fmt.Sprintf("%v", row)}, " ")
+		} else if !strings.HasSuffix(final, "-") {
+			final = strings.Join([]string{final, "-"}, "")
+		}
+	}
+	return final
 }
