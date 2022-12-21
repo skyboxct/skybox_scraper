@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	netUrl "net/url"
 	"os"
 	"strconv"
@@ -18,11 +19,6 @@ import (
 	"gopkg.in/Iwark/spreadsheet.v2"
 
 	"scraper/parser"
-)
-
-// Custom user agent.
-const (
-	userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6)"
 )
 
 const (
@@ -167,6 +163,17 @@ func (s *WebScraper) ScrapeProducts() error {
 		}
 	}
 
+	defer func(*spreadsheet.Sheet) {
+		err = productSheet.Synchronize()
+		if err != nil {
+			s.scraperEventChan <- ScraperEvent{
+				Level:   ScraperError,
+				Message: err.Error(),
+				Scraper: s.Name,
+			}
+		}
+	}(productSheet)
+
 	//Fetch all cells containing a product URL
 	var urlCells []spreadsheet.Cell
 	for _, column := range productSheet.Columns {
@@ -215,7 +222,7 @@ func (s *WebScraper) ScrapeProducts() error {
 				}
 			}
 
-			response, err := s.fetchUrl(url.String())
+			response, err := s.fetchUrl(url, productHost)
 			if err != nil {
 				s.scraperEventChan <- ScraperEvent{
 					Level:   ScraperError,
@@ -263,24 +270,29 @@ func (s *WebScraper) ScrapeProducts() error {
 			fmt.Println()
 		}(urlCell, s)
 	}
-	err = productSheet.Synchronize()
-	if err != nil {
-		s.scraperEventChan <- ScraperEvent{
-			Level:   ScraperError,
-			Message: err.Error(),
-			Scraper: s.Name,
-		}
-	}
 	wg.Wait()
 
 	return nil
 }
 
-func (s *WebScraper) fetchUrl(url string) (io.ReadCloser, error) {
-	// Open url.
-	// Need to use http.Client in order to set a custom user agent:
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("User-Agent", userAgent)
+func (s *WebScraper) fetchUrl(url *url.URL, host string) (io.ReadCloser, error) {
+	var req *http.Request
+	// Bypass cloudflare scrape protection
+	if host == "dacardworld.com" {
+		req, _ = http.NewRequest("GET", "https://proxy.scrapeops.io/v1", nil)
+
+		q := req.URL.Query()
+		q.Add("api_key", "04fa820d-f5ea-46bd-b7e4-c9080171119d")
+		q.Add("url", url.String())
+		q.Add("bypass", "cloudflare")
+		req.URL.RawQuery = q.Encode()
+	} else {
+		req, _ = http.NewRequest("GET", url.String(), nil)
+	}
+
+	req.Header.Add("accept", `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`)
+	req.Header.Add("user-agent", `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11`)
+	req.Header.Add("accept-language", "en,en-US;q=0,5")
 	resp, err := s.httpClient.Do(req)
 
 	if err != nil || resp == nil {
@@ -288,7 +300,7 @@ func (s *WebScraper) fetchUrl(url string) (io.ReadCloser, error) {
 	}
 
 	if resp.StatusCode != 200 || resp.Body == nil {
-		return nil, fmt.Errorf("GET failed for %s: %s %v", url, resp.Status, err)
+		return nil, fmt.Errorf("GET failed for %s: %s %v\n%v", url, resp.Status, err, resp)
 	}
 
 	return resp.Body, nil

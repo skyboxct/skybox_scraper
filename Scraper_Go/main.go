@@ -3,17 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"io/ioutil"
-	"os"
-	"strings"
-	"sync"
-	"time"
 
 	"scraper/scrapers"
 )
@@ -101,8 +102,6 @@ func buildAndRunGui(scraperConfigs []*scrapers.ScraperConfig, startTime time.Tim
 	configBoxes := container.New(layout.NewGridLayout(len(vBoxes)), vBoxes[0], vBoxes[1])
 
 	startButton := widget.NewButton("Start Scraper", func() {
-		fmt.Println(scraperConfigs[0].Enabled)
-		fmt.Println(&scraperConfigs)
 		registeredScrapers := registerScrapersFromConfigs(scraperConfigs, eventChan)
 		startScraper(registeredScrapers, startTime)
 	})
