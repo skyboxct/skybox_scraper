@@ -14,6 +14,7 @@ type DAParser struct {
 }
 
 func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, []error) {
+
 	// Collect non-fatal errors into a slice to be fed into event listener
 	var errs []error
 	attributes := map[string]string{}
@@ -51,7 +52,6 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	}
 
 	//Product Details
-	attributes["upc"] = strings.ReplaceAll(getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1) > li:nth-child(4)", &errs, "upc"), "UPC/Barcode: ", "")
 	productDetails := getAttributeFromHtmlBasic(doc, "ul.disc:nth-child(1)", &errs, "productDetails")
 	rx := regexp.MustCompile(`(?s)` + regexp.QuoteMeta("UPC/Barcode: ") + `(.*?)` + regexp.QuoteMeta("\n"))
 	matches := rx.FindAllStringSubmatch(productDetails, -1)
