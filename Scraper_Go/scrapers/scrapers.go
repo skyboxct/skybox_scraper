@@ -282,7 +282,7 @@ func (s *WebScraper) fetchUrl(url *url.URL, host string) (io.ReadCloser, error) 
 		req, _ = http.NewRequest("GET", "https://proxy.scrapeops.io/v1", nil)
 
 		q := req.URL.Query()
-		q.Add("api_key", "04fa820d-f5ea-46bd-b7e4-c9080171119d")
+		q.Add("api_key", "dd2f2d27-9d85-4c17-adf0-337e50c55260")
 		q.Add("url", url.String())
 		q.Add("bypass", "cloudflare")
 		req.URL.RawQuery = q.Encode()
