@@ -26,12 +26,16 @@ func (parser DAParser) ParseProductPage(page io.ReadCloser) (map[string]string, 
 	//Title
 	attributes["title"] = getAttributeFromHtmlBasic(doc, "h1", &errs, "title")
 
-	//Price: check for sale item and add non-sale price
-	price := strings.ReplaceAll(doc.Find("span.large").Text(), "$", "")
-	if len(price) == 0 {
-		//product not on sale, use normal price field
-		price = strings.ReplaceAll(doc.Find("strong.large").Text(), "$", "")
-	}
+	//Price
+	price := strings.ReplaceAll(doc.Find("strong.large").Text(), "$", "")
+
+	// NOTE: to always get MSRP when product is on sale, replace with the following block
+	// price := strings.ReplaceAll(doc.Find("span.large").Text(), "$", "")
+	// if len(price) == 0 {
+	// 	//product not on sale, use normal price field
+	// 	price = strings.ReplaceAll(doc.Find("strong.large").Text(), "$", "")
+	// }
+
 	if len(price) == 0 {
 		attributes["stock text"] = "Out of Stock"
 	} else {
